@@ -24,6 +24,12 @@ react {
     // works correctly with Expo projects.
     cliFile = new File(["node", "--print", "require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })"].execute(null, rootDir).text.trim())
     bundleCommand = "export:embed"
+    // Expo SDK 57's bundler requires Node 22 in this environment. The system
+    // Node 20 runtime has an incompatible Undici implementation.
+    def releaseNodeExecutable = System.getenv('FERAS_NODE_EXECUTABLE')
+    if (releaseNodeExecutable) {
+        nodeExecutableAndArgs = [releaseNodeExecutable]
+    }
 
     /* Folders */
      //   The root of your project, i.e. where "package.json" lives. Default is '../..'
