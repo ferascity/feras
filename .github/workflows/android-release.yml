@@ -63,13 +63,22 @@ jobs:
           fi
 
       - name: Create checksum
-        run: sha256sum android/app/build/outputs/apk/release/app-release.apk > Feras-${{ github.ref_name }}.apk.sha256
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk Feras-${{ github.ref_name }}.apk
+          sha256sum Feras-${{ github.ref_name }}.apk > Feras-${{ github.ref_name }}.apk.sha256
 
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" \
-            android/app/build/outputs/apk/release/app-release.apk#Feras-${{ github.ref_name }}.apk \
-            Feras-${{ github.ref_name }}.apk.sha256 \
-            --generate-notes
+          if gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
+            gh release upload "${{ github.ref_name }}" \
+              Feras-${{ github.ref_name }}.apk \
+              Feras-${{ github.ref_name }}.apk.sha256 \
+              --clobber
+          else
+            gh release create "${{ github.ref_name }}" \
+              Feras-${{ github.ref_name }}.apk \
+              Feras-${{ github.ref_name }}.apk.sha256 \
+              --generate-notes
+          fi
