@@ -52,8 +52,10 @@ jobs:
           set -o pipefail
           export FERAS_NODE_EXECUTABLE="$(command -v node)"
           cd android
+          set +e
           ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a 2>&1 | tee /tmp/feras-gradle.log
           result=${PIPESTATUS[0]}
+          set -e
           if [ "$result" -ne 0 ]; then
             details=$(tail -n 25 /tmp/feras-gradle.log | tr '\n' ' ' | sed 's/::/: :/g')
             echo "::error title=Feras Android release build failed::$details"
