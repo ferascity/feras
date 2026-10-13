@@ -1,0 +1,29 @@
+[toolchain]
+anchor_version = "0.30.1"
+solana_version = "1.18.23"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+feras_market = "3UJi7D53Cbj5TLGbbxFCzqW9vE7Ji5N5KKEdbQMWFaFA"
+
+[programs.devnet]
+feras_market = "3UJi7D53Cbj5TLGbbxFCzqW9vE7Ji5N5KKEdbQMWFaFA"
+
+[provider]
+cluster = "Localnet"
+wallet = "~/.config/solana/id.json"
+
+[workspace]
+members = ["programs/feras_market"]
+
+[scripts]
+test = "npm run test:program:client"
+
+[test]
+startup_wait = 30000
+
+[test.validator]
+rpc_port = 18999

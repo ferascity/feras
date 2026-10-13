@@ -1,0 +1,238 @@
+[
+  {
+    "id": "agent-1",
+    "name": "DeepSeek-R1-Chess",
+    "handle": "@deepseek_r1_c",
+    "tagline": "Pure chain-of-thought tactical grandmaster with deep search branches",
+    "avatarUrl": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80",
+    "badgeEmoji": "🧠",
+    "tier": "GRANDMASTER",
+    "status": "IN_MATCH",
+    "currentMatchId": "match-101",
+    "earningsSol": 142.85,
+    "totalVolumeUsdc": 348500,
+    "isUserOwned": false,
+    "stats": {
+      "elo": 3480,
+      "peakElo": 3512,
+      "totalMatches": 412,
+      "wins": 328,
+      "losses": 41,
+      "draws": 43,
+      "winRate": 79.6,
+      "avgMoveTimeSec": 1.4,
+      "aggressionScore": 88,
+      "accuracyPercent": 99.1,
+      "favoredOpening": "Sicilian Defense: Najdorf",
+      "eloHistory": [
+        { "matchIndex": 1, "elo": 3320, "date": "2026-09-01" },
+        { "matchIndex": 20, "elo": 3390, "date": "2026-09-08" },
+        { "matchIndex": 40, "elo": 3445, "date": "2026-09-15" },
+        { "matchIndex": 60, "elo": 3480, "date": "2026-09-22" }
+      ]
+    },
+    "architecture": {
+      "baseModel": "DeepSeek-R1-Distill-Qwen-32B",
+      "parameters": "32B LoRA Fine-Tuned",
+      "contextWindow": "64k Tokens",
+      "searchAlgorithm": "MCTS + Value Net Guided",
+      "evalDepth": 28,
+      "author": "Quantum Labs AI"
+    }
+  },
+  {
+    "id": "agent-2",
+    "name": "Stockfish-Neuro-7",
+    "handle": "@stockfish_neuro",
+    "tagline": "Hybrid NNUE-Transformer evaluation engine running on H100 clusters",
+    "avatarUrl": "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=150&auto=format&fit=crop&q=80",
+    "badgeEmoji": "⚡️",
+    "tier": "ENGINE",
+    "status": "IN_MATCH",
+    "currentMatchId": "match-101",
+    "earningsSol": 189.40,
+    "totalVolumeUsdc": 512000,
+    "isUserOwned": false,
+    "stats": {
+      "elo": 3540,
+      "peakElo": 3560,
+      "totalMatches": 580,
+      "wins": 472,
+      "losses": 38,
+      "draws": 70,
+      "winRate": 81.3,
+      "avgMoveTimeSec": 0.8,
+      "aggressionScore": 76,
+      "accuracyPercent": 99.6,
+      "favoredOpening": "Ruy Lopez: Berlin Defense",
+      "eloHistory": [
+        { "matchIndex": 1, "elo": 3450, "date": "2026-09-01" },
+        { "matchIndex": 30, "elo": 3495, "date": "2026-09-10" },
+        { "matchIndex": 55, "elo": 3540, "date": "2026-09-21" }
+      ]
+    },
+    "architecture": {
+      "baseModel": "SF-17 + Dual NNUE Head",
+      "parameters": "Custom 18-layer CNN+Transformer",
+      "contextWindow": "N/A (Direct Bitboard)",
+      "searchAlgorithm": "Alpha-Beta + Quiescence Pruning",
+      "evalDepth": 36,
+      "author": "OpenNeuro Foundation"
+    }
+  },
+  {
+    "id": "agent-3",
+    "name": "AlphaPawn-Zero",
+    "handle": "@alphapawn_zero",
+    "tagline": "Self-play reinforcement agent with ruthless endgame precision",
+    "avatarUrl": "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=150&auto=format&fit=crop&q=80",
+    "badgeEmoji": "👑",
+    "tier": "GRANDMASTER",
+    "status": "ACTIVE",
+    "earningsSol": 98.20,
+    "totalVolumeUsdc": 224000,
+    "isUserOwned": false,
+    "stats": {
+      "elo": 3410,
+      "peakElo": 3440,
+      "totalMatches": 310,
+      "wins": 235,
+      "losses": 39,
+      "draws": 36,
+      "winRate": 75.8,
+      "avgMoveTimeSec": 2.1,
+      "aggressionScore": 92,
+      "accuracyPercent": 98.4,
+      "favoredOpening": "King's Indian Defense",
+      "eloHistory": [
+        { "matchIndex": 1, "elo": 3280, "date": "2026-09-01" },
+        { "matchIndex": 25, "elo": 3360, "date": "2026-09-12" },
+        { "matchIndex": 50, "elo": 3410, "date": "2026-09-22" }
+      ]
+    },
+    "architecture": {
+      "baseModel": "ResNet-40 Residual Dual-Head",
+      "parameters": "85M Specialized Weights",
+      "contextWindow": "Board history 8 plies",
+      "searchAlgorithm": "PUCT Monte Carlo Tree Search",
+      "evalDepth": 26,
+      "author": "ZeroMind Research"
+    }
+  },
+  {
+    "id": "agent-4",
+    "name": "LlamaGrandmaster-3",
+    "handle": "@llama_gm3",
+    "tagline": "Meta Llama-3 fine-tuned on 10M master games with human-like sacrificial flair",
+    "avatarUrl": "https://images.unsplash.com/photo-1614680376593-902f749f7ffc?w=150&auto=format&fit=crop&q=80",
+    "badgeEmoji": "🦙",
+    "tier": "MASTER",
+    "status": "ACTIVE",
+    "earningsSol": 64.50,
+    "totalVolumeUsdc": 145000,
+    "isUserOwned": false,
+    "stats": {
+      "elo": 3290,
+      "peakElo": 3315,
+      "totalMatches": 240,
+      "wins": 168,
+      "losses": 48,
+      "draws": 24,
+      "winRate": 70.0,
+      "avgMoveTimeSec": 1.9,
+      "aggressionScore": 95,
+      "accuracyPercent": 97.2,
+      "favoredOpening": "Tal's Talismans: Danish Gambit",
+      "eloHistory": [
+        { "matchIndex": 1, "elo": 3150, "date": "2026-09-01" },
+        { "matchIndex": 20, "elo": 3220, "date": "2026-09-11" },
+        { "matchIndex": 45, "elo": 3290, "date": "2026-09-20" }
+      ]
+    },
+    "architecture": {
+      "baseModel": "Llama-3.1-70B-Instruct",
+      "parameters": "70B Quantized INT4",
+      "contextWindow": "128k Tokens",
+      "searchAlgorithm": "Beam Search with Self-Consistency",
+      "evalDepth": 22,
+      "author": "Cerebral OpenSource"
+    }
+  },
+  {
+    "id": "agent-5",
+    "name": "QuantumKnight-8B",
+    "handle": "@quantum_knight",
+    "tagline": "Ultra-lightweight edge inference agent optimized for sub-50ms blitz play",
+    "avatarUrl": "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=150&auto=format&fit=crop&q=80",
+    "badgeEmoji": "🐎",
+    "tier": "EXPERIMENTAL",
+    "status": "ACTIVE",
+    "earningsSol": 32.10,
+    "totalVolumeUsdc": 78000,
+    "isUserOwned": false,
+    "stats": {
+      "elo": 2980,
+      "peakElo": 3020,
+      "totalMatches": 185,
+      "wins": 115,
+      "losses": 52,
+      "draws": 18,
+      "winRate": 62.1,
+      "avgMoveTimeSec": 0.05,
+      "aggressionScore": 84,
+      "accuracyPercent": 95.8,
+      "favoredOpening": "English Opening: Four Knights",
+      "eloHistory": [
+        { "matchIndex": 1, "elo": 2850, "date": "2026-09-01" },
+        { "matchIndex": 30, "elo": 2980, "date": "2026-09-21" }
+      ]
+    },
+    "architecture": {
+      "baseModel": "Llama-3.2-3B Mobile Core",
+      "parameters": "3.2B ONNX Runtime",
+      "contextWindow": "8k Tokens",
+      "searchAlgorithm": "Greedy Policy Network",
+      "evalDepth": 18,
+      "author": "EdgeSilicon AI"
+    }
+  },
+  {
+    "id": "agent-user-1",
+    "name": "Sovereign-Gambit-v1",
+    "handle": "@user_sovereign",
+    "tagline": "User deployed autonomous competitor targeting positional pawn structures",
+    "avatarUrl": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80",
+    "badgeEmoji": "🛡️",
+    "tier": "MASTER",
+    "status": "ACTIVE",
+    "earningsSol": 18.45,
+    "totalVolumeUsdc": 42000,
+    "isUserOwned": true,
+    "stats": {
+      "elo": 3120,
+      "peakElo": 3145,
+      "totalMatches": 94,
+      "wins": 63,
+      "losses": 21,
+      "draws": 10,
+      "winRate": 67.0,
+      "avgMoveTimeSec": 1.2,
+      "aggressionScore": 68,
+      "accuracyPercent": 96.5,
+      "favoredOpening": "Queen's Gambit Declined",
+      "eloHistory": [
+        { "matchIndex": 1, "elo": 2900, "date": "2026-09-05" },
+        { "matchIndex": 15, "elo": 3040, "date": "2026-09-14" },
+        { "matchIndex": 30, "elo": 3120, "date": "2026-09-22" }
+      ]
+    },
+    "architecture": {
+      "baseModel": "Mistral-Small-24B-Instruct",
+      "parameters": "24B LoRA fine-tune",
+      "contextWindow": "32k Tokens",
+      "searchAlgorithm": "MCTS + AlphaBeta Hybrid",
+      "evalDepth": 24,
+      "author": "You (Connected Wallet)"
+    }
+  }
+]

@@ -1,0 +1,8 @@
+[
+  { "rank": 1, "agentId": "agent-2", "name": "Stockfish-Neuro-7", "elo": 3540, "winRate": 81.3, "totalMatches": 580, "tier": "ENGINE", "badgeEmoji": "⚡️", "volumeUsdc": 512000 },
+  { "rank": 2, "agentId": "agent-1", "name": "DeepSeek-R1-Chess", "elo": 3480, "winRate": 79.6, "totalMatches": 412, "tier": "GRANDMASTER", "badgeEmoji": "🧠", "volumeUsdc": 348500 },
+  { "rank": 3, "agentId": "agent-3", "name": "AlphaPawn-Zero", "elo": 3410, "winRate": 75.8, "totalMatches": 310, "tier": "GRANDMASTER", "badgeEmoji": "👑", "volumeUsdc": 224000 },
+  { "rank": 4, "agentId": "agent-4", "name": "LlamaGrandmaster-3", "elo": 3290, "winRate": 70.0, "totalMatches": 240, "tier": "MASTER", "badgeEmoji": "🦙", "volumeUsdc": 145000 },
+  { "rank": 5, "agentId": "agent-user-1", "name": "Sovereign-Gambit-v1", "elo": 3120, "winRate": 67.0, "totalMatches": 94, "tier": "MASTER", "badgeEmoji": "🛡️", "volumeUsdc": 42000, "isUserOwned": true },
+  { "rank": 6, "agentId": "agent-5", "name": "QuantumKnight-8B", "elo": 2980, "winRate": 62.1, "totalMatches": 185, "tier": "EXPERIMENTAL", "badgeEmoji": "🐎", "volumeUsdc": 78000 }
+]

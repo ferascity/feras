@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Feras Admin</title>
+    <style>
+      :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: #10131a; color: #f5f7fb; }
+      body { max-width: 860px; margin: 0 auto; padding: 40px 22px 64px; }
+      h1 { font-size: 28px; margin: 0 0 6px; } h2 { font-size: 18px; margin: 0 0 14px; }
+      p, .muted { color: #aab1bf; line-height: 1.45; } .notice { border-left: 3px solid #4a9cff; padding-left: 12px; }
+      section { border-top: 1px solid #303746; padding: 26px 0; } .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .field { background: #181d27; border: 1px solid #303746; border-radius: 6px; padding: 11px; overflow-wrap: anywhere; }
+      .label { color: #8992a4; display: block; font-size: 12px; margin-bottom: 4px; text-transform: uppercase; }
+      button { appearance: none; background: #2388ef; color: white; border: 0; border-radius: 6px; padding: 11px 15px; font-size: 15px; font-weight: 700; cursor: pointer; }
+      button.secondary { background: #252c39; } button:disabled { opacity: .5; cursor: not-allowed; }
+      input { background: #181d27; border: 1px solid #3a4353; border-radius: 5px; color: #fff; font-size: 16px; padding: 10px; width: 130px; }
+      .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; } #message { min-height: 24px; color: #7fc5ff; white-space: pre-wrap; } .error { color: #ff9f9f !important; }
+      @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <h1>Feras Admin</h1>
+    <p class="notice">Local Devnet tool. It is not part of the mobile product. Review every wallet prompt and reject anything that differs from the details below.</p>
+    <p id="message">Loading verified deployment state...</p>
+    <section>
+      <h2>Deployment State</h2>
+      <div id="status" class="grid"></div>
+    </section>
+    <section>
+      <h2>Upgrade Authority Handoff</h2>
+      <p>Connect only the configured new upgrade-authority wallet. The local server partially signs the checked loader instruction with the temporary CLI authority; your extension provides the required second signature.</p>
+      <div id="upgrade-review" class="grid"></div>
+      <div class="actions"><button id="upgrade-connect">Connect upgrade wallet</button><button id="upgrade-sign" disabled>Review and sign handoff</button></div>
+    </section>
+    <section>
+      <h2>Initialize Platform Configuration</h2>
+      <p>Connect only the configured platform-authority wallet. It pays account rent and becomes the on-chain Feras configuration authority.</p>
+      <label class="label" for="fee">Platform fee (basis points)</label><input id="fee" type="number" min="0" max="1000" value="200" />
+      <label class="label" for="claim" style="margin-top:14px">Claim window (seconds)</label><input id="claim" type="number" min="1" max="15552000" value="2592000" />
+      <div id="config-review" class="grid" style="margin-top:16px"></div>
+      <div class="actions"><button id="config-connect" class="secondary">Connect platform wallet</button><button id="config-sign" disabled>Review and sign configuration</button></div>
+    </section>
+    <section>
+      <h2>Create Devnet Market</h2>
+      <p>Creates one open market and its program-owned Devnet USDC vault. The canonical match ID becomes part of the on-chain PDA and cannot be edited later.</p>
+      <label class="label" for="match-id">Canonical match ID</label><input id="match-id" value="feras-devnet-smoke-001" style="width:260px" />
+      <label class="label" for="match-title" style="margin-top:14px">Match title</label><input id="match-title" value="Feras Devnet Smoke Test" style="width:300px" />
+      <label class="label" for="market-lock" style="margin-top:14px">Lock time</label><input id="market-lock" type="datetime-local" style="width:260px" />
+      <div id="market-review" class="grid" style="margin-top:16px"></div>
+      <div class="actions"><button id="market-connect" class="secondary">Connect platform wallet</button><button id="market-sign" disabled>Review and create market</button></div>
+    </section>
+    <section>
+      <h2>Distribute Devnet USDC</h2>
+      <p>Funds a tester wallet from the fixed Devnet test-USDC supply. It cannot mint tokens and signs only from the configured distribution wallet.</p>
+      <label class="label" for="recipient">Tester wallet address</label><input id="recipient" placeholder="Devnet wallet address" style="width:min(100%, 460px)" />
+      <label class="label" for="distribution-amount" style="margin-top:14px">Amount</label><input id="distribution-amount" value="100" inputmode="decimal" />
+      <div id="distribution-review" class="grid" style="margin-top:16px"></div>
+      <div class="actions"><button id="distribution-connect" class="secondary">Connect distribution wallet</button><button id="distribution-sign" disabled>Review and distribute</button></div>
+    </section>
+    <script type="module" nonce="{{CSP_NONCE}}">
+      const $ = (id) => document.getElementById(id);
+      const state = { status: null, upgradeWallet: null, platformWallet: null };
+      function message(value, error = false) { $('message').textContent = value; $('message').className = error ? 'error' : ''; }
+      function short(value) { return value ? `${value.slice(0, 6)}...${value.slice(-5)}` : 'None'; }
+      function render(target, values) { target.replaceChildren(...Object.entries(values).map(([label, value]) => { const node = document.createElement('div'); node.className='field'; const key=document.createElement('span'); key.className='label'; key.textContent=label; const text=document.createElement('span'); text.textContent=value; node.append(key,text); return node; })); }
+      async function request(url, body) { const response = await fetch(url, body === undefined ? {} : { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }); const json = await response.json(); if (!response.ok) throw new Error(json.error || 'Request failed'); return json; }
+      function provider() { return window.solflare?.isSolflare ? window.solflare : window.phantom?.solana?.isPhantom ? window.phantom.solana : window.solana; }
+      async function connect(expected, role) { const wallet = provider(); if (!wallet) throw new Error('Solflare or Phantom was not detected in this browser.'); const result = await wallet.connect(); const connectedKey = result?.publicKey || wallet.publicKey; if (!connectedKey) throw new Error('The wallet connected but did not provide an active Solana address.'); const address = typeof connectedKey === 'string' ? connectedKey : connectedKey.toString(); if (address !== expected) throw new Error(`Connected ${short(address)}. Switch the extension to the configured ${role} account before continuing.`); return wallet; }
+      async function signAndSubmit(wallet, prepareUrl, submitUrl, body) { const prepared = await request(prepareUrl, body || {}); const { Transaction } = await import('https://esm.sh/@solana/web3.js@1.99.0?bundle'); const transaction = Transaction.from(Uint8Array.from(atob(prepared.transaction), char => char.charCodeAt(0))); const signed = await wallet.signTransaction(transaction); const encoded = btoa(String.fromCharCode(...signed.serialize({ requireAllSignatures:true, verifySignatures:true }))); const result = await request(submitUrl, { transaction: encoded, ...(prepared.draftId ? { draftId: prepared.draftId } : {}) }); return { review: prepared.review, signature: result.signature }; }
+      async function load() { state.status = await request('/api/status'); render($('status'), { 'Cluster': state.status.cluster, 'Program': state.status.programId, 'Current upgrade authority': state.status.currentUpgradeAuthority || 'None', 'Required upgrade authority': state.status.expectedUpgradeAuthority, 'Config PDA': state.status.configPda, 'Config initialized': String(state.status.configInitialized) }); render($('upgrade-review'), { 'Program': state.status.programId, 'ProgramData': state.status.programData, 'New authority': state.status.expectedUpgradeAuthority, 'Instruction': 'Upgradeable BPF Loader: SetAuthorityChecked' }); if (state.status.configInitialized) { $('config-connect').disabled = true; $('config-sign').disabled = true; } }
+      $('upgrade-connect').onclick = async () => { try { state.upgradeWallet = await connect(state.status.expectedUpgradeAuthority, 'upgrade authority'); $('upgrade-sign').disabled = false; message('Correct upgrade authority connected.'); } catch (error) { message(error.message, true); } };
+      $('upgrade-sign').onclick = async () => { try { if (!confirm('Approve only a Devnet checked upgrade-authority handoff for the displayed Feras program.')) return; const result = await signAndSubmit(state.upgradeWallet, '/api/upgrade/prepare', '/api/upgrade/submit'); message(`Upgrade authority updated. Devnet transaction: ${result.signature}`); await load(); } catch (error) { message(error.message, true); } };
+      $('config-connect').onclick = async () => { try { state.platformWallet = await connect(state.status.platformAuthority, 'platform authority'); $('config-sign').disabled = false; message('Correct platform authority connected.'); } catch (error) { message(error.message, true); } };
+      $('config-sign').onclick = async () => { try { const policy = { feeBasisPoints:Number($('fee').value), claimWindowSeconds:Number($('claim').value) }; if (!confirm(`Initialize Devnet config with ${policy.feeBasisPoints} bps and a ${policy.claimWindowSeconds}-second claim window?`)) return; const result = await signAndSubmit(state.platformWallet, '/api/config/prepare', '/api/config/submit', policy); message(`Platform config initialized. Devnet transaction: ${result.signature}`); await load(); } catch (error) { message(error.message, true); } };
+      $('market-connect').onclick = async () => { try { state.marketWallet = await connect(state.status.platformAuthority, 'platform authority'); $('market-sign').disabled = false; message('Correct platform authority connected for market creation.'); } catch (error) { message(error.message, true); } };
+      $('market-sign').onclick = async () => { try { const lockTime = Math.floor(new Date($('market-lock').value).getTime() / 1000); const draft = { matchId:$('match-id').value, title:$('match-title').value, category:'DEVNET', lockTime }; if (!confirm(`Create the Devnet market ${draft.matchId}? This canonical ID cannot be changed.`)) return; const result = await signAndSubmit(state.marketWallet, '/api/market/prepare', '/api/market/submit', draft); message(`Devnet market created. Transaction: ${result.signature}`); render($('market-review'), { 'Market': result.review.market, 'Vault': result.review.vault, 'Lock time': new Date(result.review.lockTime * 1000).toLocaleString() }); } catch (error) { message(error.message, true); } };
+      $('distribution-connect').onclick = async () => { try { state.distributionWallet = await connect('6RCii2MVfkFEcRX9LvgTtr9PskRoDTio77DTCuRTwXsc', 'distribution authority'); $('distribution-sign').disabled = false; message('Correct distribution authority connected.'); } catch (error) { message(error.message, true); } };
+      $('distribution-sign').onclick = async () => { try { const draft = { recipient:$('recipient').value, amount:$('distribution-amount').value }; if (!confirm(`Distribute ${draft.amount} Devnet USDC to the displayed tester wallet?`)) return; const result = await signAndSubmit(state.distributionWallet, '/api/distribution/prepare', '/api/distribution/submit', draft); message(`Devnet USDC distributed. Transaction: ${result.signature}`); render($('distribution-review'), { 'Recipient': result.review.recipient, 'Amount': `${result.review.amount} Devnet USDC`, 'Recipient token account': result.review.destination }); } catch (error) { message(error.message, true); } };
+      const defaultLock = new Date(Date.now() + 24 * 60 * 60 * 1000); $('market-lock').value = `${defaultLock.getFullYear()}-${String(defaultLock.getMonth()+1).padStart(2,'0')}-${String(defaultLock.getDate()).padStart(2,'0')}T${String(defaultLock.getHours()).padStart(2,'0')}:${String(defaultLock.getMinutes()).padStart(2,'0')}`;
+      load().catch((error) => message(error.message, true));
+    </script>
+  </body>
+</html>

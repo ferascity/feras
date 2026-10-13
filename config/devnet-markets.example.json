@@ -1,0 +1,10 @@
+[
+  {
+    "id": "replace-with-canonical-match-id",
+    "title": "Replace with the canonical match title",
+    "category": "CHAMPIONSHIP",
+    "status": "LIVE",
+    "marketAddress": "replace-with-deployed-market-pda",
+    "vaultAddress": "replace-with-deployed-market-vault-ata"
+  }
+]

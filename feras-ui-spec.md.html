@@ -1,0 +1,676 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}</style><style>:root{color-scheme:light dark;--md-bg:#fff;--md-text:rgba(0,0,0,.8);--md-muted:rgba(0,0,0,.6);--md-fill:rgba(0,0,0,.04);--md-fill-strong:rgba(0,0,0,.06);--md-rule:rgba(0,0,0,.1);--md-rule-strong:rgba(0,0,0,.16);--md-link:hsl(210 100% 45%)}@media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])){--md-bg:#0d0d0d;--md-text:rgba(255,255,255,.85);--md-muted:rgba(255,255,255,.6);--md-fill:rgba(255,255,255,.06);--md-fill-strong:rgba(255,255,255,.09);--md-rule:rgba(255,255,255,.14);--md-rule-strong:rgba(255,255,255,.22);--md-link:hsl(210 100% 72%)}}:root[data-theme="dark"]{color-scheme:dark;--md-bg:#0d0d0d;--md-text:rgba(255,255,255,.85);--md-muted:rgba(255,255,255,.6);--md-fill:rgba(255,255,255,.06);--md-fill-strong:rgba(255,255,255,.09);--md-rule:rgba(255,255,255,.14);--md-rule-strong:rgba(255,255,255,.22);--md-link:hsl(210 100% 72%)}:root[data-theme="light"]{color-scheme:light}@media print{:root,:root[data-theme="dark"]{color-scheme:light;--md-bg:#fff;--md-text:rgba(0,0,0,.8);--md-muted:rgba(0,0,0,.6);--md-fill:rgba(0,0,0,.04);--md-fill-strong:rgba(0,0,0,.06);--md-rule:rgba(0,0,0,.1);--md-rule-strong:rgba(0,0,0,.16);--md-link:hsl(210 100% 45%)}}body{background:var(--md-bg);color:var(--md-text);max-width:720px;margin:0 auto;padding:32px;display:flex;flex-direction:column;gap:10px;font:14px/1.55 -apple-system,BlinkMacSystemFont,'SF Pro','Segoe UI',sans-serif;overflow-wrap:break-word}body>:first-child{margin-top:0}h1,h2,h3,h4,h5,h6{margin:6px 0 0;line-height:1.25;font-weight:600;text-wrap:balance}h1{font-size:1.35em}h2{font-size:1.15em;color:var(--md-muted)}h3,h4,h5,h6{font-size:1em}p,ul,ol,blockquote,table,pre,hr{margin:0}strong{font-weight:600}a{color:var(--md-link);text-decoration:none}a:hover{text-decoration:underline}ul,ol{display:flex;flex-direction:column;gap:6px;padding-left:22px}ul{list-style:disc}ol{list-style:decimal}:is(li,td,th)>*+:is(p,ul,ol,blockquote){margin-top:6px}blockquote{display:flex;flex-direction:column;gap:10px;border-left:2px solid var(--md-rule);padding-left:10px;color:var(--md-muted)}:not(pre)>code{background:var(--md-fill);padding:1px 3px;border-radius:4px;font:.92em 'SF Mono',ui-monospace,Menlo,Consolas,monospace}a>code{background:none;color:inherit}pre{background:var(--md-fill);padding:10px 12px;border-radius:6px;overflow-x:auto;font:12px/1.5 'SF Mono',ui-monospace,Menlo,Consolas,monospace;margin-block:4px}pre code{background:none;padding:0;font:inherit}table{width:100%;border-collapse:separate;border-spacing:2px;font:inherit}th,td{padding:6px 8px;border-radius:3px;text-align:left;vertical-align:top}th{background:var(--md-fill-strong);font-weight:600}td{background:var(--md-fill)}:is(th,td) :not(pre)>code{background:transparent}hr{border:0;border-top:1px solid var(--md-rule-strong);margin-block:10px}img{max-width:100%;height:auto;border-radius:4px}</style>
+</head><body>
+<h1>Feras — UI-Only Build Spec</h1>
+<p><strong>Stack:</strong> Expo (React Native) · TypeScript · No backend, no wallet txns, no chain calls — mock data only</p>
+<hr>
+<h2>0. Scope Contract</h2>
+<table>
+<thead>
+<tr>
+<th>In scope</th>
+<th>Out of scope (this phase)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Every screen, navigation flow, component, animation, loading/empty/error state</td>
+<td>Real Solana transactions, real wallet signing</td>
+</tr>
+<tr>
+<td>Real chessboard rendering + scripted move replay from mock game data</td>
+<td>Actual agent execution/sandboxing</td>
+</tr>
+<tr>
+<td>Bet slip UI, odds UI, confirmation UI</td>
+<td>Real betting logic, real odds calculation, payouts</td>
+</tr>
+<tr>
+<td>Agent submission <em>wizard UI</em></td>
+<td>Actually running/scoring a submitted agent</td>
+</tr>
+<tr>
+<td>Local/static mock data, fake async delays for realistic loading states</td>
+<td>Any live API, database, or backend</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rule:</strong> every screen must work standalone against a local mock JSON/TS file. No screen may assume a backend exists. This makes swapping mocks for real API calls later a drop-in replacement, not a rewrite — mock functions should mirror the exact shape a real API/RPC call would return.</p>
+<hr>
+<h2>1. Tech Stack &amp; Package Research</h2>
+<h3>Core</h3>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Package</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Framework</td>
+<td><code>expo</code> (SDK 57)</td>
+<td>Current stable SDK; managed workflow, EAS Build for dApp Store APK</td>
+</tr>
+<tr>
+<td>Language</td>
+<td>TypeScript</td>
+<td>Non-negotiable for a data-shape-heavy app (game state, bet state)</td>
+</tr>
+<tr>
+<td>Routing</td>
+<td><code>expo-router</code> (file-based, built on React Navigation)</td>
+<td>Standard for new Expo aps since SDK 56; native stack + tabs out of the box, typed routes</td>
+</tr>
+<tr>
+<td>Gestures</td>
+<td><code>react-native-gesture-handler</code></td>
+<td>Required peer dep for chessboard drag-and-drop</td>
+</tr>
+<tr>
+<td>Reanimated</td>
+<td><code>react-native-reanimated</code> v3+</td>
+<td>Required peer dep for chessboard; drives all high-fps UI motion</td>
+</tr>
+</tbody>
+</table>
+<h3>Chessboard (the centerpiece)</h3>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>react-native-chessboard</code></strong> (enzomanuelmangano)</td>
+<td><strong>Primary pick.</strong> Gesture-driven, animated, ref-based programmatic <code>move()</code> API — exactly what you need to <em>replay</em> a mock game move-by-move on a timer. Takes an initial FEN, exposes a ref for scripted moves, has built-in highlight/promotion/checkmate visuals.</td>
+</tr>
+<tr>
+<td><code>rn-chessboard</code> (leomino)</td>
+<td>Backup option — newer, actively developed, supports full legal-move set + board rotation, but &quot;work in progress&quot; per its own README. Use only if the primary lib blocks you on styling.</td>
+</tr>
+<tr>
+<td><code>chess.js</code></td>
+<td>Not a UI lib — a move-generation/FEN engine. In this UI-only phase, use it purely as a <strong>mock-data generation helper</strong> (offline, in your data script) to produce realistic legal move sequences/FEN strings for replay data, not as runtime game logic in the app.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rule:</strong> the chessboard component never owns &quot;is this a legal move&quot; logic in this phase. It only renders a position and animates a scripted sequence of <code>{from, to}</code> moves pulled from mock JSON, on a timer, to simulate &quot;agents playing live.&quot;</p>
+<h3>Styling &amp; Design System</h3>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>nativewind</code> (v4)</td>
+<td>Tailwind syntax on RN — fastest way to keep a consistent dark, crypto-native visual language across every screen without a custom style sheet per component</td>
+</tr>
+<tr>
+<td><code>@expo-google-fonts/*</code> + <code>expo-font</code></td>
+<td>Load a distinct display font (e.g. Space Grotesk / Geist) for numerics/odds and a clean body font (Inter)</td>
+</tr>
+<tr>
+<td><code>expo-linear-gradient</code></td>
+<td>Card glows, CTA buttons, live-match highlight states</td>
+</tr>
+<tr>
+<td><code>expo-blur</code></td>
+<td>Glassmorphism for bottom sheets, modals, nav bars — the visual language most crypto-native apps converge on</td>
+</tr>
+</tbody>
+</table>
+<h3>Motion, Feedback, Loading</h3>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>moti</code> (built on Reanimated)</td>
+<td>Declarative micro-animations (card entrance, odds ticking up/down, live-pulse dot) without hand-rolling Reanimated worklets everywhere</td>
+</tr>
+<tr>
+<td><code>moti/skeleton</code> or <code>react-native-skeleton-placeholder</code></td>
+<td>Skeleton loading states — critical since every mock fetch should simulate network delay</td>
+</tr>
+<tr>
+<td><code>lottie-react-native</code></td>
+<td>Win/loss celebration, empty-state illustrations</td>
+</tr>
+<tr>
+<td><code>expo-haptics</code></td>
+<td>Tap feedback on bet-slip actions, move animations, confirmations</td>
+</tr>
+<tr>
+<td><code>react-native-toast-message</code> (or <code>burnt</code> for native iOS/Android toasts)</td>
+<td>Bet placed, agent submitted, error toasts</td>
+</tr>
+</tbody>
+</table>
+<h3>Navigation Surfaces &amp; Structure</h3>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>@gorhom/bottom-sheet</code></td>
+<td>Bet slip, agent detail, wallet-connect sheet, filters — the dominant interaction pattern for &quot;quick action without leaving context&quot;</td>
+</tr>
+<tr>
+<td><code>@expo/vector-icons</code> + <code>phosphor-react-native</code></td>
+<td>Icon set; Phosphor's duotone/bold weights read as more &quot;crypto product&quot; than default Ionicons</td>
+</tr>
+</tbody>
+</table>
+<h3>State &amp; Mock Data Layer</h3>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>zustand</code></td>
+<td>Lightweight global state for UI-only concerns: selected agent, active bet slip, wallet-connected (mock) flag, theme. Also already a peer dep pattern used by chessboard libs.</td>
+</tr>
+<tr>
+<td><code>@tanstack/react-query</code></td>
+<td>Even with mock data, wrap every &quot;fetch&quot; in a query hook that returns a Promise with an artificial delay. This gets you real loading/error/retry UI states for free and means swapping in real endpoints later touches only the query function, not any component.</td>
+</tr>
+<tr>
+<td><code>@react-native-async-storage/async-storage</code></td>
+<td>Persist trivial local mock state (watchlist, last-viewed tab, &quot;onboarded&quot; flag) across app restarts</td>
+</tr>
+</tbody>
+</table>
+<h3>Charts &amp; Odds Visualization</h3>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>react-native-svg</code></td>
+<td>Already required transitively by the chessboard + icon libs; also your base for any custom board skins</td>
+</tr>
+<tr>
+<td><code>react-native-gifted-charts</code> (or <code>victory-native</code>)</td>
+<td>Win-probability line, odds-movement sparkline, agent Elo history — pick gifted-charts for faster setup, victory-native if you want more D3-style control later</td>
+</tr>
+</tbody>
+</table>
+<h3>Images</h3>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>expo-image</code></td>
+<td>Drop-in replacement for RN <code>Image</code> with better caching/placeholder/blurhash support — use for agent avatars, piece sets, board skins</td>
+</tr>
+</tbody>
+</table>
+<h3>Solana packages — <strong>installed now, mocked behind an interface</strong></h3>
+<p>Even though no real chain calls happen in this phase, install the real packages and build a thin <code>WalletService</code>/<code>MockWalletProvider</code> interface now, so Phase-2 (real functionality) swaps an implementation rather than restructuring every screen that reads &quot;wallet connected / balance / address.&quot;</p>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Purpose (future real use)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>@solana/web3.js</code></td>
+<td>Base Solana JS SDK</td>
+</tr>
+<tr>
+<td><code>@solana-mobile/mobile-wallet-adapter-protocol</code> + <code>...-protocol-web3js</code></td>
+<td>Mobile Wallet Adapter (MWA) — the standard way an Android Solana dApp talks to a wallet app; required for eventual dApp Store submission</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rule:</strong> create <code>services/wallet/IWalletService.ts</code> now (connect, getAddress, getBalance, signAndSend — all returning mocked Promises with fake delay). Every screen imports the interface, never a concrete implementation.</p>
+<h3>Dev/QA tooling</h3>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>React Native Storybook (<code>@storybook/react-native</code>)</td>
+<td>Build and review each component (BetSlip, AgentCard, ChessBoardReplay, OddsTicker) in isolation before wiring into screens — much faster iteration than navigating the full app every time</td>
+</tr>
+<tr>
+<td>ESLint + Prettier, <code>expo-doctor</code></td>
+<td>Baseline hygiene; <code>expo-doctor</code> catches dependency/config drift early, which matters a lot once MWA native modules are in the tree</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>2. Project Structure</h2>
+<pre><code>app/                          # expo-router file-based routes
+  (onboarding)/
+    welcome.tsx
+    connect-wallet.tsx        # mock connect flow
+  (tabs)/
+    index.tsx                 # Home / Live Matches
+    arena.tsx                 # Agent leaderboard / browse
+    my-agents.tsx             # Submitted agents + submission entry point
+    activity.tsx              # Bet history / portfolio
+    profile.tsx
+  match/[id].tsx               # Match detail: board + bet slip + commentary
+  agent/[id].tsx                # Agent profile: stats, history, &#34;bet on this agent&#34;
+  agent/submit.tsx              # Submission wizard (multi-step)
+  agent/[id]/sandbox.tsx        # Test-your-agent sandbox (mock matches)
+components/
+  chess/ChessBoardReplay.tsx    # wraps react-native-chessboard, drives it from mock move list
+  betting/BetSlip.tsx
+  betting/OddsTicker.tsx
+  agent/AgentCard.tsx
+  agent/AgentStatBlock.tsx
+  ui/                          # design-system primitives (Button, Card, Sheet, Skeleton, Tag)
+services/
+  wallet/IWalletService.ts
+  wallet/MockWalletService.ts
+  api/                         # one file per &#34;resource&#34; — matches.ts, agents.ts, bets.ts
+                                # each exports async functions returning mock data + fake delay
+mocks/
+  matches.json
+  agents.json
+  gameReplays/                 # one file per match: ordered {from,to,ply,commentary?} list
+  leaderboard.json
+  betHistory.json
+store/                         # zustand stores
+theme/                         # tokens: colors, spacing, typography, radii
+</code></pre>
+<p><strong>Rule:</strong> <code>mocks/</code> holds raw data. <code>services/api/</code> holds functions that <em>shape</em> that data into what a real endpoint would return (including pagination, delay, occasional simulated error). Components never import from <code>mocks/</code> directly.</p>
+<hr>
+<h2>3. Design System Rules</h2>
+<ul>
+<li><strong>Dark-first.</strong> This is a spectator/betting product used in short bursts, often one-handed — high contrast, large tap targets, legible odds at a glance.</li>
+<li><strong>One accent color per semantic meaning</strong>, fixed across the app: green = favorable odds/win, red = unfavorable/loss, one brand accent for primary CTAs. Never repurpose these for anything else.</li>
+<li><strong>Numerics get their own type scale</strong> (tabular figures) so odds/balances don't jitter as digits change width.</li>
+<li><strong>Every interactive element has a pressed + disabled state defined up front</strong> — bet slip buttons in particular need very explicit disabled styling since &quot;can't bet&quot; is a common real state later (closed market, insufficient mock balance).</li>
+<li><strong>No screen ships without loading, empty, and error variants</strong>, even though errors are simulated. Build all three at the same time as the &quot;happy path,&quot; not after.</li>
+<li>Component library lives in <code>components/ui/</code> and is the <em>only</em> place raw NativeWind class soup is allowed to accumulate — screens compose primitives, they don't reinvent them.</li>
+</ul>
+<hr>
+<h2>4. Mock Data &amp; Fake-Async Layer</h2>
+<p>Every <code>services/api/*.ts</code> function follows this shape so it's indistinguishable from a real API at the call site:</p>
+<pre><code class="language-ts">export async function getLiveMatches(): Promise&lt;Match[]&gt; {
+  await delay(400 + Math.random() * 400);       // simulate network
+  if (shouldSimulateError()) throw new ApiError(&#39;...&#39;); // rare, seeded
+  return MOCK_MATCHES;
+}
+</code></pre>
+<p>Used through React Query (<code>useQuery(['matches','live'], getLiveMatches)</code>), so every screen already has real <code>isLoading</code> / <code>isError</code> / <code>data</code> branches wired — when Phase 2 replaces the function body with a real <code>fetch</code>, <strong>zero component code changes.</strong></p>
+<p><strong>Rule:</strong> mock game replays are pre-scripted, legal chess games (generate with <code>chess.js</code> offline, not at runtime) stored as ordered move lists with timestamps, so <code>ChessBoardReplay</code> can &quot;play&quot; a live match convincingly on a loop or on-demand.</p>
+<hr>
+<h2>5. Screen Inventory</h2>
+<pre class="mermaid">flowchart TD
+    A[Welcome] --&gt; B[Connect Wallet - mock]
+    B --&gt; C[Home: Live Matches]
+    C --&gt; D[Match Detail: Board + Bet Slip]
+    C --&gt; E[Arena: Agent Leaderboard]
+    E --&gt; F[Agent Profile]
+    F --&gt; D
+    C --&gt; G[My Agents]
+    G --&gt; H[Submit Agent Wizard]
+    G --&gt; I[Agent Sandbox: Test Matches]
+    C --&gt; J[Activity / Bet History]
+    C --&gt; K[Profile / Wallet]
+</pre>
+<table>
+<thead>
+<tr>
+<th>Screen</th>
+<th>Purpose</th>
+<th>Key components</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Welcome / Onboarding</td>
+<td>Value prop, 2-3 slides</td>
+<td>Illustration, pager</td>
+</tr>
+<tr>
+<td>Connect Wallet (mock)</td>
+<td>Fake MWA connect flow, loading → &quot;connected&quot; state</td>
+<td>Bottom sheet, spinner, success animation</td>
+</tr>
+<tr>
+<td>Home / Live Matches</td>
+<td>Feed of in-progress + upcoming agent matches</td>
+<td>Live match cards (mini board preview, odds, viewer count)</td>
+</tr>
+<tr>
+<td>Match Detail</td>
+<td>The core screen: full board replaying live, agent info both sides, live odds ticker, bet slip</td>
+<td><code>ChessBoardReplay</code>, <code>OddsTicker</code>, <code>BetSlip</code> sheet, move list / commentary feed</td>
+</tr>
+<tr>
+<td>Arena / Leaderboard</td>
+<td>Sortable/filterable list of all agents, ranked</td>
+<td><code>AgentCard</code>, filter chips, search</td>
+</tr>
+<tr>
+<td>Agent Profile</td>
+<td>One agent's stats, match history, &quot;bet on next match&quot;</td>
+<td>Stat blocks, sparkline, recent-games list</td>
+</tr>
+<tr>
+<td>My Agents</td>
+<td>User's submitted agents + CTA to submit new</td>
+<td><code>AgentCard</code> (owned variant), empty state</td>
+</tr>
+<tr>
+<td>Submit Agent Wizard</td>
+<td>Multi-step: name/avatar → upload/config → rules acknowledgment → review</td>
+<td>Stepper, form primitives, review summary</td>
+</tr>
+<tr>
+<td>Agent Sandbox</td>
+<td>Run a mock test match for a submitted agent, see mock result</td>
+<td><code>ChessBoardReplay</code> (sandbox mode), result card</td>
+</tr>
+<tr>
+<td>Activity / Bet History</td>
+<td>Past + pending mock bets, win/loss</td>
+<td>List with status tags, filters</td>
+</tr>
+<tr>
+<td>Profile / Wallet</td>
+<td>Mock address, mock balance, settings</td>
+<td>Copyable address chip, settings list</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>6. Build Phases (UI only)</h2>
+<p><strong>Phase 0 — Foundation</strong>
+Expo project init (SDK 57, TS, expo-router), NativeWind + theme tokens configured, folder structure scaffolded, Storybook wired, ESLint/Prettier baseline. No screens yet.</p>
+<p><strong>Phase 1 — Design System</strong>
+Build every <code>components/ui/</code> primitive in Storybook first (Button, Card, Tag, Sheet wrapper, Skeleton, Input, Stepper) with all states (default/pressed/disabled/loading). This is the phase that prevents visual drift later.</p>
+<p><strong>Phase 2 — Navigation Shell &amp; Static Screens</strong>
+Wire <code>expo-router</code> tab + stack structure. Build every screen with <strong>static mock data</strong>, no animation yet, no live chessboard — just correct layout, correct data shapes, correct loading/empty/error variants via the fake-async layer. Full breakdown below.</p>
+<p><strong>Phase 3 — Chessboard Integration</strong>
+Integrate <code>react-native-chessboard</code>, build <code>ChessBoardReplay</code> driven by scripted mock move data, get move animation, highlight, and check/checkmate visuals working standalone in Storybook before dropping into Match Detail.</p>
+<p><strong>Phase 4 — Interactive Layer</strong>
+Bottom sheets (bet slip, agent detail, wallet connect), forms (submission wizard with validation UI only), odds ticker live-updating from a mock interval, haptics + toasts on key actions.</p>
+<p><strong>Phase 5 — Motion &amp; Polish</strong>
+Moti/Reanimated micro-interactions (card entrances, live-pulse indicators, odds tick color-flash), Lottie moments (win/submit success), skeletons everywhere a fetch happens, empty states with illustration + CTA.</p>
+<p><strong>Phase 6 — QA &amp; Handoff</strong>
+Cross-platform pass (iOS + Android — Solana dApp Store is Android-first, but don't let iOS visibly break), accessibility pass (tap target sizes, contrast, screen-reader labels on the board and odds), and a written map of every mock function in <code>services/api/</code> → the real endpoint/RPC call it will become, for the next (functional) phase.</p>
+<hr>
+<h2>6a. Phase 2 — Detailed Breakdown</h2>
+<p><strong>Exit criteria for this phase:</strong> the app is fully navigable end to end, every screen renders real layout against typed mock data through the fake-async service layer, every fetch boundary has a working loading/empty/error variant, and nothing crashes — with zero animation and zero live chessboard (a <strong>static board render</strong> stands in for it, see 6a.3).</p>
+<h3>6a.1 Mock data contracts</h3>
+<p>Define these in <code>types/</code> first — every mock file and every <code>services/api/*</code> function returns these shapes, so Phase 2's placeholder data and Phase-5-onward's &quot;real&quot; data are structurally identical.</p>
+<pre><code class="language-ts">type AgentStyle = &#39;aggressive&#39; | &#39;positional&#39; | &#39;balanced&#39; | &#39;experimental&#39;;
+
+interface Agent {
+  id: string;
+  name: string;
+  avatarUrl: string;
+  ownerHandle: string;
+  elo: number;
+  wins: number; losses: number; draws: number;
+  style: AgentStyle;
+  isOwnedByUser: boolean;
+  createdAt: string;
+}
+
+interface Match {
+  id: string;
+  status: &#39;live&#39; | &#39;upcoming&#39; | &#39;completed&#39;;
+  agentWhite: Agent; agentBlack: Agent;
+  startTime: string;
+  fenSnapshot: string;        // current/final position — static preview only in Phase 2
+  viewerCount: number;
+  oddsWhite: number; oddsBlack: number;   // decimal odds, e.g. 1.85
+  winnerAgentId?: string;
+}
+
+interface Bet {
+  id: string; matchId: string; agentId: string;
+  amountMock: number; oddsAtPlacement: number;
+  status: &#39;pending&#39; | &#39;won&#39; | &#39;lost&#39;;
+  placedAt: string;
+}
+
+interface LeaderboardEntry {
+  rank: number; agent: Agent; winRate: number; totalMatches: number;
+}
+
+interface MockWallet { address: string; balanceMock: number; connected: boolean; }
+</code></pre>
+<p>Each gets a matching <code>services/api/*.ts</code> function (<code>getLiveMatches</code>, <code>getMatch(id)</code>, <code>getAgents</code>, <code>getAgent(id)</code>, <code>getLeaderboard</code>, <code>getBetHistory</code>, <code>submitBet</code>, <code>submitAgent</code>) following the delay/error-simulation pattern from section 4, each consumed via a React Query hook (<code>useLiveMatches</code>, <code>useMatch(id)</code>, etc.) in <code>hooks/</code>.</p>
+<h3>6a.2 Navigation shell</h3>
+<ul>
+<li><code>app/_layout.tsx</code> — root layout; reads <code>connected</code> from the mock wallet store and redirects to <code>(onboarding)</code> if false, otherwise renders <code>(tabs)</code>. This is the only routing &quot;guard&quot; in the app.</li>
+<li><code>app/(tabs)/_layout.tsx</code> — tab bar: Home, Arena, My Agents, Activity, Profile. Icons switch fill/weight on focus (Phosphor).</li>
+<li>Stack screens (<code>match/[id]</code>, <code>agent/[id]</code>, <code>agent/submit</code>, <code>agent/[id]/sandbox</code>) live outside the tab group so they push full-screen with a back header, per expo-router file conventions.</li>
+<li>Every stack screen header: back button + screen title only in Phase 2 — no contextual header actions yet (those arrive with interactivity in Phase 4).</li>
+</ul>
+<h3>6a.3 Screen-by-screen spec</h3>
+<table>
+<thead>
+<tr>
+<th>Screen</th>
+<th>Route</th>
+<th>Data hook(s)</th>
+<th>Phase-2 layout</th>
+<th>Acceptance criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Welcome</td>
+<td><code>(onboarding)/welcome.tsx</code></td>
+<td>none</td>
+<td>Static 2–3 slide pager, no real swiping polish yet</td>
+<td>Renders, &quot;Get Started&quot; navigates to connect-wallet</td>
+</tr>
+<tr>
+<td>Connect Wallet</td>
+<td><code>(onboarding)/connect-wallet.tsx</code></td>
+<td><code>MockWalletService.connect</code></td>
+<td>Single CTA button, static &quot;connecting…&quot; and &quot;connected&quot; states (no animation)</td>
+<td>Tapping connect flips mock <code>connected</code> flag and root layout redirects to tabs</td>
+</tr>
+<tr>
+<td>Home</td>
+<td><code>(tabs)/index.tsx</code></td>
+<td><code>useLiveMatches</code>, <code>useUpcomingMatches</code></td>
+<td>Two sections (&quot;Live now&quot;, &quot;Upcoming&quot;), each a vertical list of match cards showing static <code>fenSnapshot</code> board thumbnail, both agent names/avatars, decimal odds, viewer count</td>
+<td>Loading = skeleton cards ×3; empty = &quot;No live matches&quot; illustration; error = retry button; tapping a card routes to <code>match/[id]</code></td>
+</tr>
+<tr>
+<td>Match Detail</td>
+<td><code>match/[id].tsx</code></td>
+<td><code>useMatch(id)</code></td>
+<td>Static board render of <code>fenSnapshot</code> (no replay yet — see note below), both agents' cards, odds row, &quot;Place Bet&quot; button (opens empty placeholder sheet), move-list stub as plain scrollable text</td>
+<td>404/empty state if id not found; loading skeleton for board + cards</td>
+</tr>
+<tr>
+<td>Arena / Leaderboard</td>
+<td><code>(tabs)/arena.tsx</code></td>
+<td><code>useLeaderboard</code></td>
+<td>Ranked list, <code>AgentCard</code> compact variant (rank, avatar, name, Elo, W/L/D), filter chip row (non-functional layout only)</td>
+<td>Loading = skeleton rows; empty = illustration; tapping row routes to <code>agent/[id]</code></td>
+</tr>
+<tr>
+<td>Agent Profile</td>
+<td><code>agent/[id].tsx</code></td>
+<td><code>useAgent(id)</code></td>
+<td>Header (avatar, name, owner, style tag), stat block (Elo, W/L/D, win rate), static &quot;recent matches&quot; list, CTA row</td>
+<td>Loading/empty/error states; CTA present but inert until Phase 4</td>
+</tr>
+<tr>
+<td>My Agents</td>
+<td><code>(tabs)/my-agents.tsx</code></td>
+<td><code>useAgents({ownedOnly:true})</code></td>
+<td>List of owned <code>AgentCard</code>s + prominent &quot;Submit new agent&quot; CTA</td>
+<td>Empty state (no agents yet) is the <strong>primary</strong> state to design well — first-run experience</td>
+</tr>
+<tr>
+<td>Submit Agent Wizard</td>
+<td><code>agent/submit.tsx</code></td>
+<td>none (local form state only)</td>
+<td>Multi-step static layout: 1) name/avatar 2) config upload placeholder 3) rules acknowledgment checklist 4) review summary — steps navigate via local state, no submission call yet</td>
+<td>All 4 steps render correctly; &quot;Submit&quot; is present but disabled/no-op in this phase</td>
+</tr>
+<tr>
+<td>Agent Sandbox</td>
+<td><code>agent/[id]/sandbox.tsx</code></td>
+<td><code>useAgent(id)</code></td>
+<td>Static board placeholder + &quot;Run test match&quot; button (no-op) + empty results list</td>
+<td>Empty state (&quot;no test matches yet&quot;) is primary; button is visually complete but inert</td>
+</tr>
+<tr>
+<td>Activity</td>
+<td><code>(tabs)/activity.tsx</code></td>
+<td><code>useBetHistory</code></td>
+<td>List of <code>Bet</code> rows with status tag (pending/won/lost), filter chip row (layout only)</td>
+<td>Loading/empty (&quot;no bets yet&quot;)/error states</td>
+</tr>
+<tr>
+<td>Profile</td>
+<td><code>(tabs)/profile.tsx</code></td>
+<td><code>useMockWallet</code></td>
+<td>Copyable address chip, static balance, settings list (theme toggle can be real; everything else inert)</td>
+<td>Renders mock address/balance correctly</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Note on the board in Phase 2:</strong> render <code>fenSnapshot</code> as a single <strong>static</strong> position using the chessboard package with all interaction/animation props disabled (<code>gestureEnabled={false}</code>, no <code>ref.move()</code> calls yet). This proves the component integrates and looks right <em>before</em> Phase 3 wires it to a scripted replay — don't skip straight to animated replay while other screens are still unbuilt.</p>
+<h3>6a.4 Definition of done for Phase 2</h3>
+<ul>
+<li><input disabled="" type="checkbox"> Every route above exists and is reachable via real navigation (no dead links)</li>
+<li><input disabled="" type="checkbox"> Every data-bound screen has verified loading, empty, and error renders (trigger the error path manually via the seeded <code>shouldSimulateError</code>)</li>
+<li><input disabled="" type="checkbox"> TypeScript has zero <code>any</code> in <code>types/</code> and <code>services/api/</code></li>
+<li><input disabled="" type="checkbox"> No screen imports from <code>mocks/</code> directly — only through <code>services/api/</code></li>
+<li><input disabled="" type="checkbox"> Static board renders correctly on both a small (SE-size) and large device width</li>
+</ul>
+<hr>
+<h2>7. Rules to Follow Throughout</h2>
+<ol>
+<li><strong>No screen talks to <code>mocks/</code> directly</strong> — always through <code>services/api/</code>.</li>
+<li><strong>No real chain/network code</strong> in this phase — not even a &quot;just in case&quot; fetch. Keep the surface 100% offline-capable.</li>
+<li><strong>Every async boundary shows loading, error, and empty states</strong> — never assume happy path.</li>
+<li><strong>The chessboard never validates moves</strong> — it plays a script. Legality lives in mock-data generation (offline), not runtime.</li>
+<li><strong>One design-system primitive per concern</strong> — if you're about to write a one-off styled <code>View</code> that looks like a Button, stop and extend the Button primitive instead.</li>
+<li><strong>Wallet/agent-execution/betting logic is always behind an interface</strong> (<code>IWalletService</code>, etc.), even though only a mock implementation exists right now.</li>
+<li><strong>Component code has zero knowledge of &quot;mock&quot; vs &quot;real&quot;</strong> — that distinction lives only in <code>services/</code>.</li>
+<li><strong>Every submission/bet action needs a disabled + confirmation state</strong>, even fake — this is the UX you'll least want to redesign once real stakes are involved.</li>
+<li>Build in Storybook before wiring into a screen for any non-trivial component (board, bet slip, submission wizard, odds ticker).</li>
+</ol>
+<hr>
+<h2>What comes after this phase</h2>
+<p>Once the UI is complete and reviewed, Phase 2 (functionality) becomes: implement real <code>services/api/*</code> calls, swap <code>MockWalletService</code> for a real MWA-backed implementation, add real agent sandboxing/execution, and — as covered earlier — settle the legal/licensing question before any real-money bet path goes live. None of that requires touching component code if the interfaces above are respected.</p>
+
+
+<!--claude-mermaid-runtime-begin:3477-->
+<style>.mermaid-diagram{margin-block:4px}.mermaid-diagram svg{display:block;margin:0 auto;max-width:100%;height:auto}</style>
+<script src="/_runtime/mermaid-11.16.1.min.js"></script>
+<script>(function(){
+var CFG={"palettes":{"light":{"surface":"#f4efe4","text":"#42392e","line":"#8a7f6d","border":"#7a6c52","bg":"#fffdf8"},"dark":{"surface":"#262b34","text":"#f2f3f5","line":"#a8adb8","border":"#9aa4b8","bg":"#1f232b"}}};
+if(typeof mermaid==='undefined')return;
+var pres=Array.prototype.slice.call(document.querySelectorAll('pre.mermaid')).filter(function(p){if(p.hasAttribute('data-claude-mermaid-claimed'))return false;p.setAttribute('data-claude-mermaid-claimed','1');return true;});
+if(!pres.length)return;
+var mq=window.matchMedia?window.matchMedia('(prefers-color-scheme: dark)'):null;
+var root=document.documentElement;
+var items=pres.map(function(pre){
+var mount=document.createElement('div');mount.className='mermaid-diagram';
+return {pre:pre,mount:mount,src:pre.textContent||''};
+});
+var seq=0;
+var renderGen=0;
+var lastKey='';
+function pageBg(fallback){
+var els=[document.body,document.documentElement];
+for(var i=0;i<els.length;i++){
+var c=els[i]&&getComputedStyle(els[i]).backgroundColor;
+if(c&&c!=='transparent'&&c!=='rgba(0, 0, 0, 0)')return c;
+}
+return fallback;
+}
+function render(){
+var theme=root.getAttribute('data-theme');
+var dark=theme==='dark'||(!!(mq&&mq.matches)&&theme!=='light');
+var pal=dark?CFG.palettes.dark:CFG.palettes.light;
+var bg=pageBg(pal.bg);
+var key=(dark?'d':'l')+'|'+bg;
+if(key===lastKey)return;
+lastKey=key;
+var gen=++renderGen;
+var font=getComputedStyle(document.body).fontFamily||'sans-serif';
+var nat={useMaxWidth:false};
+mermaid.initialize({
+startOnLoad:false,securityLevel:'strict',theme:'base',
+flowchart:nat,sequence:nat,er:nat,state:nat,class:nat,pie:nat,
+gantt:nat,journey:nat,timeline:nat,gitGraph:nat,mindmap:nat,xyChart:nat,
+quadrantChart:nat,sankey:nat,c4:nat,requirement:nat,block:nat,
+packet:nat,kanban:nat,architecture:nat,radar:nat,
+themeVariables:{background:bg,mainBkg:pal.surface,primaryColor:pal.surface,
+primaryTextColor:pal.text,lineColor:pal.line,primaryBorderColor:pal.border,
+nodeBorder:pal.border,clusterBorder:pal.border,edgeLabelBackground:bg,
+clusterBkg:'rgba(127,127,127,0.07)',titleColor:pal.text,
+darkMode:dark,rowOdd:bg,rowEven:'rgba(127,127,127,0.07)',
+attributeBackgroundColorOdd:bg,attributeBackgroundColorEven:'rgba(127,127,127,0.07)',
+fontSize:'16px',fontFamily:font},
+themeCSS:'.node rect, .node circle, .node polygon, .node path, .cluster rect { stroke-width: 2px; }'
+});
+items.forEach(function(it){
+var id='claude-mermaid-'+seq++;
+mermaid.render(id,it.src).then(function(r){
+if(gen!==renderGen)return;
+var prev=it.pre.previousElementSibling;
+if(prev&&prev.className==='mermaid-diagram'&&prev!==it.mount)return;
+it.mount.innerHTML=r.svg;
+if(!it.mount.parentNode)it.pre.parentNode.insertBefore(it.mount,it.pre);
+it.pre.style.display='none';
+},function(){
+var scratch=document.getElementById(id);
+if(scratch)scratch.parentNode.removeChild(scratch);
+scratch=document.getElementById('d'+id);
+if(scratch)scratch.parentNode.removeChild(scratch);
+if(gen!==renderGen)return;
+if(it.mount.parentNode)it.mount.parentNode.removeChild(it.mount);
+it.pre.style.display='';
+});
+});
+}
+render();
+if(mq&&mq.addEventListener)mq.addEventListener('change',render);
+if(typeof MutationObserver!=='undefined')new MutationObserver(render).observe(root,{attributes:true,attributeFilter:['data-theme']});
+})();</script>
+<!--claude-mermaid-runtime-end-->
+</body></html>

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Feras | CLOCK IN Pitch Deck</title>
+  <style>
+    :root { --ink:#080a0f; --panel:#10141d; --line:#293244; --text:#f5f7fb; --muted:#98a2b4; --blue:#1597ff; --cyan:#64d8ff; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#000; color:var(--text); font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; overflow:hidden; }
+    .deck { width:100vw; height:100vh; position:relative; }
+    .slide { display:none; width:100%; height:100%; padding:6.5vh 8vw; background:linear-gradient(140deg, #07090e 0%, #0c1018 100%); position:relative; overflow:hidden; }
+    .slide.active { display:flex; flex-direction:column; justify-content:space-between; }
+    .eyebrow { color:var(--blue); font-size:clamp(11px,1.2vw,17px); font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+    h1,h2,p { margin:0; letter-spacing:0; }
+    h1 { font-size:clamp(56px,9vw,150px); line-height:.92; max-width:1000px; }
+    h2 { font-size:clamp(34px,5.3vw,82px); line-height:.98; max-width:1040px; }
+    .display { font-size:clamp(28px,3.2vw,52px); line-height:1.08; max-width:930px; }
+    .sub { color:var(--muted); font-size:clamp(17px,1.7vw,26px); line-height:1.35; max-width:700px; }
+    .footer { display:flex; justify-content:space-between; color:#71809a; font-size:clamp(11px,1.1vw,16px); font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+    .blue { color:var(--blue); }
+    .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:2vw; max-width:1100px; }
+    .card { border-top:1px solid var(--line); padding-top:18px; }
+    .card b { display:block; font-size:clamp(20px,2.1vw,34px); line-height:1.1; margin-bottom:10px; }
+    .card p { color:var(--muted); font-size:clamp(15px,1.35vw,20px); line-height:1.35; }
+    .steps { display:flex; align-items:center; gap:14px; flex-wrap:wrap; max-width:1060px; }
+    .step { border:1px solid var(--line); background:rgba(16,20,29,.85); padding:20px; min-width:170px; flex:1; font-size:clamp(17px,1.8vw,26px); font-weight:700; }
+    .arrow { color:var(--blue); font-size:30px; }
+    .proof { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1px; max-width:1100px; background:var(--line); border:1px solid var(--line); }
+    .proof div { background:var(--panel); padding:27px; font-size:clamp(18px,1.8vw,28px); font-weight:700; }
+    .check { color:var(--blue); margin-right:10px; }
+    .board { position:absolute; right:8vw; bottom:12vh; width:min(31vw,450px); aspect-ratio:1; opacity:.92; background-color:#dce4d0; background-image:linear-gradient(45deg,#607f63 25%,transparent 25%,transparent 75%,#607f63 75%),linear-gradient(45deg,#607f63 25%,transparent 25%,transparent 75%,#607f63 75%); background-size:25% 25%; background-position:0 0,12.5% 12.5%; box-shadow:0 0 0 1px #344639,0 28px 80px rgba(0,0,0,.45); }
+    .board:after { content:"Q  N  B\A\A\A\A\A\A"; white-space:pre; position:absolute; color:#0b1018; font-size:clamp(34px,6vw,80px); line-height:1.05; padding:12%; font-family:Georgia,serif; transform:rotate(-9deg); }
+    .loop { display:flex; gap:0; align-items:stretch; max-width:1150px; border:1px solid var(--line); }
+    .loop div { flex:1; padding:24px 18px; border-right:1px solid var(--line); min-height:130px; display:flex; align-items:flex-end; font-size:clamp(16px,1.7vw,25px); font-weight:700; }
+    .loop div:last-child { border-right:0; background:var(--blue); color:#071018; }
+    .source { color:#71809a; font-size:12px; max-width:770px; line-height:1.35; }
+    .controls { position:fixed; right:22px; bottom:18px; z-index:3; color:#9ca8ba; font-size:13px; }
+    .notes { display:none; }
+    @media (max-width:720px) { .slide{padding:7vh 7vw}.grid{grid-template-columns:1fr}.board{opacity:.22;right:-14vw;bottom:12vh;width:70vw}.proof{grid-template-columns:1fr}.loop{flex-direction:column}.loop div{border-right:0;border-bottom:1px solid var(--line);min-height:0}.loop div:last-child{border-bottom:0}.steps{gap:7px}.step{min-width:130px;padding:13px}.arrow{font-size:20px} }
+  </style>
+</head>
+<body>
+  <main class="deck">
+    <section class="slide active">
+      <div class="eyebrow">CLOCK IN | Solana Mobile Hackathon</div>
+      <div><h1>FERAS</h1><p class="display"><span class="blue">Where autonomous chess</span><br>becomes a live market.</p></div>
+      <div><p class="sub">Mobile-native prediction for AI chess rivalries on Solana.</p><div class="footer"><span>Android-first</span><span>Devnet demo</span></div></div>
+      <aside class="notes">Feras turns the attention around an autonomous chess match into a focused mobile prediction experience.</aside>
+    </section>
+    <section class="slide">
+      <div class="eyebrow">The problem</div>
+      <h2>Chess viewers have no stake in the rivalry.</h2>
+      <div class="grid"><div class="card"><b>Watching is passive.</b><p>There is no simple way to act on conviction in the moment.</p></div><div class="card"><b>Stories vanish.</b><p>Agent narratives disappear as soon as the game ends.</p></div><div class="card"><b>Prediction feels distant.</b><p>Existing experiences are abstract, cluttered, and desktop-first.</p></div></div>
+      <div class="footer"><span>01</span><span>Feras</span></div>
+      <aside class="notes">The opening is deliberately about the spectator experience, not the technology.</aside>
+    </section>
+    <section class="slide">
+      <div class="eyebrow">The product</div>
+      <h2>Every match becomes a decision.</h2>
+      <div class="steps"><div class="step">Follow agents</div><div class="arrow">&#8594;</div><div class="step">Replay the position</div><div class="arrow">&#8594;</div><div class="step">Choose White, Draw, or Black</div><div class="arrow">&#8594;</div><div class="step">Place a position</div></div>
+      <div class="footer"><span>02</span><span>One focused flow. No trading terminal.</span></div>
+      <aside class="notes">The intention is to make a decision feel native to watching a match rather than like visiting a market.</aside>
+    </section>
+    <section class="slide">
+      <div class="eyebrow">Designed for the turning point</div>
+      <h2>Live board. Clear choice.<br><span class="blue">Wallet approval.</span></h2>
+      <p class="sub">A mobile flow that respects the match. Arena to position, without leaving the rivalry.</p>
+      <div class="board" aria-hidden="true"></div>
+      <div class="footer"><span>03</span><span>Feras arena experience</span></div>
+      <aside class="notes">Show the product demo here. Walk from arena, into a match, then into a position and Mobile Wallet Adapter approval.</aside>
+    </section>
+    <section class="slide">
+      <div class="eyebrow">Working demo</div>
+      <h2>Functional Android proof,<br>not a concept.</h2>
+      <div class="proof"><div><span class="check">&#10003;</span>Wallet connection</div><div><span class="check">&#10003;</span>Devnet USDC balance</div><div><span class="check">&#10003;</span>Chess replay</div><div><span class="check">&#10003;</span>Devnet position placement</div></div>
+      <p class="source">Built for hackathon validation on Devnet. This is not presented as a production-mainnet launch.</p>
+      <div class="footer"><span>04</span><span>Android development client</span></div>
+      <aside class="notes">Keep the proof honest. The important claim is that the core loop works on an Android device with Devnet funds.</aside>
+    </section>
+    <section class="slide">
+      <div class="eyebrow">Why Solana Mobile</div>
+      <h2>Custody, auditability, and speed for live moments.</h2>
+      <div class="grid"><div class="card"><b>Player custody</b><p>Mobile Wallet Adapter keeps signing in the player's wallet.</p></div><div class="card"><b>Auditable positions</b><p>On-chain actions make the market legible to every participant.</p></div><div class="card"><b>Live-fit economics</b><p>Fast, low-cost transactions suit decisions made during a match.</p></div></div>
+      <div class="footer"><span>05</span><span>Mobile Wallet Adapter</span></div>
+      <aside class="notes">The chain exists because it solves the product's trust and custody problem, not as decoration.</aside>
+    </section>
+    <section class="slide">
+      <div class="eyebrow">Stickiness</div>
+      <h2>The return loop is the rivalry.</h2>
+      <div class="loop"><div>Agent rivalry</div><div>Live match moment</div><div>Take a side</div><div>Outcome</div><div>Reputation and the next rivalry</div></div>
+      <p class="sub">Feras is built around recurring characters and competitive narratives, not one-off charts.</p>
+      <div class="footer"><span>06</span><span>Retention through story</span></div>
+      <aside class="notes">This is the central product hypothesis. We do not claim metrics yet; we explain the behavior the product is designed to create.</aside>
+    </section>
+    <section class="slide">
+      <div class="eyebrow">CLOCK IN</div>
+      <h2>Feras is ready<br>to <span class="blue">clock in.</span></h2>
+      <div><p class="display">Watch the rivalry.<br>Take a side.</p><p class="sub">A mobile-native prediction arena for autonomous chess on Solana.</p></div>
+      <div><p class="source">CLOCK IN calls for a functional Android APK, source, demo video, and a pitch presentation; judging includes stickiness, UX, innovation, and presentation. Source: solanamobile.com/blog/clock-in-the-solana-mobile-hackathon</p><div class="footer"><span>Android APK | GitHub | Demo video</span><span>Feras</span></div></div>
+      <aside class="notes">Close on the product promise, then point judges to the APK, repository, and demo video.</aside>
+    </section>
+  </main>
+  <div class="controls">Arrow keys to navigate | N for notes</div>
+  <script>
+    const slides = [...document.querySelectorAll('.slide')]; let index = 0;
+    function render(){ slides.forEach((slide,i)=>slide.classList.toggle('active',i===index)); }
+    addEventListener('keydown', event => { if(event.key==='ArrowRight'||event.key===' '){ index=Math.min(slides.length-1,index+1); render(); } if(event.key==='ArrowLeft'){ index=Math.max(0,index-1); render(); } if(event.key.toLowerCase()==='n'){ document.querySelectorAll('.notes').forEach(note=>note.style.display=note.style.display==='block'?'none':'block'); } });
+  </script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "matchId": "match-102",
+  "initialFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "result": "0-1",
+  "terminationReason": "Black wins by technical mate threat in Queen's Gambit Declined",
+  "moves": [
+    { "ply": 1, "from": "d2", "to": "d4", "piece": "p", "color": "w", "san": "d4", "fen": "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq d3 0 1", "winProbabilityWhite": 0.52, "commentary": "Solid Queen's Pawn opening." },
+    { "ply": 2, "from": "d7", "to": "d5", "piece": "p", "color": "b", "san": "d5", "fen": "rnbqkbnr/ppp1pppp/8/3p4/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 2", "winProbabilityWhite": 0.51, "commentary": "Symmetrical central response." },
+    { "ply": 3, "from": "c2", "to": "c4", "piece": "p", "color": "w", "san": "c4", "fen": "rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR b KQkq c3 0 2", "winProbabilityWhite": 0.53, "commentary": "Queen's Gambit offered by AlphaPawn." },
+    { "ply": 4, "from": "e7", "to": "e6", "piece": "p", "color": "b", "san": "e6", "fen": "rnbqkbnr/ppp2ppp/4p3/3p4/2PP4/8/PP2PPPP/RNBQKBNR w KQkq - 0 3", "winProbabilityWhite": 0.52, "commentary": "Declined with solid granite defense." },
+    { "ply": 5, "from": "b1", "to": "c3", "piece": "n", "color": "w", "san": "Nc3", "fen": "rnbqkbnr/ppp2ppp/4p3/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR b KQkq - 1 3", "winProbabilityWhite": 0.53, "commentary": "Applying pressure on d5." },
+    { "ply": 6, "from": "g8", "to": "f6", "piece": "n", "color": "b", "san": "Nf6", "fen": "rnbqkb1r/ppp2ppp/4pn2/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 2 4", "winProbabilityWhite": 0.52, "commentary": "Classical knight development." },
+    { "ply": 7, "from": "c1", "to": "g5", "piece": "b", "color": "w", "san": "Bg5", "fen": "rnbqkb1r/ppp2ppp/4pn2/3p2B1/2PP4/2N5/PP2PPPP/R2QKBNR b KQkq - 3 4", "winProbabilityWhite": 0.54, "commentary": "Pinning f6 knight." },
+    { "ply": 8, "from": "f8", "to": "e7", "piece": "b", "color": "b", "san": "Be7", "fen": "rnbqk2r/ppp1bppp/4pn2/3p2B1/2PP4/2N5/PP2PPPP/R2QKBNR w KQkq - 4 5", "winProbabilityWhite": 0.53, "commentary": "Unpinning." },
+    { "ply": 9, "from": "e2", "to": "e3", "piece": "p", "color": "w", "san": "e3", "fen": "rnbqk2r/ppp1bppp/4pn2/3p2B1/2PP4/2N1P3/PP3PPP/R2QKBNR b KQkq - 0 5", "winProbabilityWhite": 0.53, "commentary": "Fortifying d4." },
+    { "ply": 10, "from": "e8", "to": "g8", "piece": "k", "color": "b", "san": "O-O", "fen": "rnbq1rk1/ppp1bppp/4pn2/3p2B1/2PP4/2N1P3/PP3PPP/R2QKBNR w KQ - 1 6", "winProbabilityWhite": 0.52, "commentary": "Kingside safety secured." }
+  ]
+}
