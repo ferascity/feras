@@ -48,6 +48,11 @@ jobs:
       - name: Build signed ARM64 APK
         env:
           NODE_ENV: production
+          EXPO_PUBLIC_SOLANA_RPC_URL: https://api.devnet.solana.com
+          EXPO_PUBLIC_DEVNET_USDC_MINT: CwhBMtAs7tAHSabWrW2Dg2hgQ7Ktt7pW86UR35Be9VrU
+          EXPO_PUBLIC_FERAS_MARKET_PROGRAM_ID: 3UJi7D53Cbj5TLGbbxFCzqW9vE7Ji5N5KKEdbQMWFaFA
+          EXPO_PUBLIC_FERAS_MARKET_API_URL: ${{ vars.FERAS_MARKET_API_URL }}
+          EXPO_PUBLIC_FERAS_DEVNET_MARKET_READY: ${{ vars.FERAS_DEVNET_MARKET_READY }}
         run: |
           set -o pipefail
           export FERAS_NODE_EXECUTABLE="$(command -v node)"

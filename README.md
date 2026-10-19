@@ -64,6 +64,18 @@ FERAS_MARKET_REGISTRY_JSON=<reviewed JSON array of open market metadata>
 program owner, config PDA, vault, status, and lock time before it prepares any
 position instruction.
 
+After the API and a fresh open market are verified, add these **GitHub Actions
+repository variables** (not secrets) before making the next APK release:
+
+```text
+FERAS_MARKET_API_URL=https://<your-public-HTTPS-market-api>
+FERAS_DEVNET_MARKET_READY=true
+```
+
+The Android release workflow embeds those public values along with the
+reviewed Devnet program and test-mint addresses. Do not set the ready value
+until the API health endpoint and a real wallet position have been verified.
+
 ## Safety
 
 Never add a seed phrase, private key, keystore, wallet session, or authority
