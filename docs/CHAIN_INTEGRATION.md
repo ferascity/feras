@@ -13,8 +13,8 @@ or audited service.
 - Token program: original SPL Token Program
 - Asset invariant: the configured mint must have exactly six decimals
 - Claim window: configured once at initialization, from one second to 180 days
-- Deployment: **not deployed to localnet, devnet, or mainnet**
-- Initialization: **not initialized**
+- Deployment: verified on **Solana Devnet** on 19 October 2026
+- Initialization: verified Devnet config PDA `9YZXQ75zivqc7HKPRAMRZkHPUCcmaErz7BL7QAaC7ifs`
 
 The mobile config exposes the public address as
 `FERAS_MARKET_PROGRAM_ID`. An `EXPO_PUBLIC_FERAS_MARKET_PROGRAM_ID` override is

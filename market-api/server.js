@@ -35,9 +35,11 @@ function asPublicKey(value, label) {
 function readRegistry() {
   let parsed;
   try {
-    parsed = JSON.parse(fs.readFileSync(REGISTRY_PATH, 'utf8'));
+    parsed = process.env.FERAS_MARKET_REGISTRY_JSON
+      ? JSON.parse(process.env.FERAS_MARKET_REGISTRY_JSON)
+      : JSON.parse(fs.readFileSync(REGISTRY_PATH, 'utf8'));
   } catch {
-    throw new Error(`Cannot read market registry at ${REGISTRY_PATH}`);
+    throw new Error('Cannot read the Devnet market registry');
   }
   if (!Array.isArray(parsed)) throw new Error('Market registry must be an array');
   return parsed;
@@ -84,7 +86,17 @@ async function assertMarketOnChain({ connection, programId, configPda, match }) 
   if (!config.equals(configPda) || !vault.equals(asPublicKey(match.vaultAddress, 'vaultAddress'))) {
     throw new Error('Registered market configuration or vault does not match on-chain state');
   }
-  return market;
+
+  const lockTime = Number(account.data.readBigInt64LE(136));
+  const status = account.data[144];
+  if (status !== 0) {
+    throw new Error('Registered market is not open for new positions');
+  }
+  if (!Number.isSafeInteger(lockTime) || lockTime <= Math.floor(Date.now() / 1000)) {
+    throw new Error('Registered market has passed its lock time');
+  }
+
+  return { market, lockTime };
 }
 
 async function buildPositionInstruction(body) {
@@ -99,7 +111,7 @@ async function buildPositionInstruction(body) {
   const match = matchForId(registry, body.matchId);
   const connection = new Connection(RPC_URL, 'confirmed');
   const [configPda] = PublicKey.findProgramAddressSync([Buffer.from('config')], programId);
-  const market = await assertMarketOnChain({ connection, programId, configPda, match });
+  const { market } = await assertMarketOnChain({ connection, programId, configPda, match });
   const ownerToken = getAssociatedTokenAddressSync(
     mint,
     owner,
@@ -214,6 +226,9 @@ async function loadOwnerPositions(ownerAddress, registry) {
 async function handle(request, response) {
   try {
     const url = new URL(request.url, `http://${request.headers.host}`);
+    if (request.method === 'GET' && url.pathname === '/healthz') {
+      return json(response, 200, { service: 'feras-market-api', cluster: 'devnet', status: 'ok' });
+    }
     const registry = readRegistry();
     if (request.method === 'GET' && url.pathname === '/v1/matches') {
       const status = url.searchParams.get('status');
