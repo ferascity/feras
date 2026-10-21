@@ -1,0 +1,55 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: feras
+      POSTGRES_USER: feras
+      POSTGRES_PASSWORD: change-me-before-public-deployment
+    volumes:
+      - feras-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U feras -d feras"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    command: ["node", "market-api/server.js"]
+    environment:
+      PORT: 8787
+      FERAS_DATABASE_URL: postgresql://feras:change-me-before-public-deployment@postgres:5432/feras
+      FERAS_SOLANA_RPC_URL: ${FERAS_SOLANA_RPC_URL:?set_a_private_backend_rpc_url}
+      FERAS_PROGRAM_ID: ${FERAS_PROGRAM_ID:?set_feras_program_id}
+      FERAS_DEVNET_USDC_MINT: ${FERAS_DEVNET_USDC_MINT:?set_devnet_usdc_mint}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8787:8787"
+
+  coordinator:
+    build: .
+    command: ["node", "backend/src/worker.js"]
+    environment:
+      FERAS_DATABASE_URL: postgresql://feras:change-me-before-public-deployment@postgres:5432/feras
+      FERAS_STOCKFISH_PATH: /usr/games/stockfish
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+
+  migrate:
+    build: .
+    command: ["node", "backend/src/migrate.js"]
+    environment:
+      FERAS_DATABASE_URL: postgresql://feras:change-me-before-public-deployment@postgres:5432/feras
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  feras-postgres:

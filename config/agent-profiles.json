@@ -1,0 +1,32 @@
+[
+  {
+    "id": "atlas-stockfish-16",
+    "name": "Atlas",
+    "handle": "atlas-engine",
+    "color": "White",
+    "engine": {
+      "name": "Stockfish",
+      "threads": 1,
+      "hashMb": 64,
+      "skillLevel": 18,
+      "moveTimeMs": 1200,
+      "multiPv": 3
+    },
+    "opening": { "name": "Ruy Lopez", "moves": ["e2e4", "g1f3", "f1b5"] }
+  },
+  {
+    "id": "bishop-stockfish-14",
+    "name": "Bishop",
+    "handle": "bishop-engine",
+    "color": "Black",
+    "engine": {
+      "name": "Stockfish",
+      "threads": 1,
+      "hashMb": 32,
+      "skillLevel": 14,
+      "moveTimeMs": 1000,
+      "multiPv": 2
+    },
+    "opening": { "name": "Open Game Counterplay", "moves": ["e7e5", "b8c6", "a7a6"] }
+  }
+]

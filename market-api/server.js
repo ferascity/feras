@@ -17,6 +17,13 @@ const OUTCOME = { WHITE: 0, DRAW: 1, BLACK: 2 };
 const PORT = Number(process.env.PORT || 8787);
 const RPC_URL = process.env.FERAS_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 const REGISTRY_PATH = process.env.FERAS_MARKET_REGISTRY_PATH || 'config/devnet-markets.json';
+let matchReadApi = null;
+
+if (process.env.FERAS_DATABASE_URL) {
+  const { MatchRepository } = require('../backend/src/repository');
+  const { createReadApi } = require('../backend/src/read-api');
+  matchReadApi = createReadApi(new MatchRepository(process.env.FERAS_DATABASE_URL));
+}
 
 function required(name) {
   const value = process.env[name]?.trim();
@@ -61,6 +68,35 @@ function u64Bytes(value) {
 function json(response, status, payload) {
   response.writeHead(status, { 'Content-Type': 'application/json' });
   response.end(JSON.stringify(payload));
+}
+
+function matchPathId(pathname, suffix) {
+  return decodeURIComponent(pathname.slice('/v1/matches/'.length, -suffix.length));
+}
+
+async function streamEvents(request, response, api, matchId, after) {
+  response.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive' });
+  response.write('retry: 2000\n\n');
+  let lastSequence = after;
+  let closed = false;
+  let polling = false;
+  const send = async () => {
+    if (closed || polling) return;
+    polling = true;
+    try {
+      const events = await api.events(matchId, lastSequence);
+      for (const event of events) {
+        lastSequence = Number(event.sequence);
+        response.write(`id: ${lastSequence}\nevent: ${event.event_type}\ndata: ${JSON.stringify(event)}\n\n`);
+      }
+    } catch (error) {
+      response.write(`event: error\ndata: ${JSON.stringify({ error: error.message })}\n\n`);
+    } finally { polling = false; }
+  };
+  await send();
+  const heartbeat = setInterval(() => { if (!closed) response.write(': keep-alive\n\n'); }, 15_000);
+  const poll = setInterval(() => { void send(); }, 1_000);
+  request.once('close', () => { closed = true; clearInterval(heartbeat); clearInterval(poll); response.end(); });
 }
 
 function matchForId(registry, id) {
@@ -227,7 +263,44 @@ async function handle(request, response) {
   try {
     const url = new URL(request.url, `http://${request.headers.host}`);
     if (request.method === 'GET' && url.pathname === '/healthz') {
-      return json(response, 200, { service: 'feras-market-api', cluster: 'devnet', status: 'ok' });
+      return json(response, 200, { service: 'feras-market-api', cluster: 'devnet', status: 'ok', matchSource: matchReadApi ? 'postgres' : 'registry' });
+    }
+    if (request.method === 'GET' && url.pathname === '/readyz') {
+      if (!matchReadApi) return json(response, 503, { status: 'not-ready', reason: 'PostgreSQL match source is not configured' });
+      try {
+        return json(response, 200, await matchReadApi.ready());
+      } catch {
+        return json(response, 503, { status: 'not-ready', reason: 'PostgreSQL is unavailable' });
+      }
+    }
+    if (matchReadApi && request.method === 'GET' && url.pathname === '/v1/matches') {
+      return json(response, 200, await matchReadApi.list(url.searchParams.get('status')));
+    }
+    if (matchReadApi && request.method === 'GET' && url.pathname.endsWith('/replay')) {
+      const id = matchPathId(url.pathname, '/replay');
+      const replay = await matchReadApi.replay(id);
+      return replay ? json(response, 200, replay) : json(response, 404, { error: 'Match not found' });
+    }
+    if (matchReadApi && request.method === 'GET' && url.pathname.endsWith('/events')) {
+      const id = matchPathId(url.pathname, '/events');
+      const after = Number(url.searchParams.get('after') || 0);
+      if (!Number.isInteger(after) || after < 0) throw new Error('after must be a non-negative integer');
+      return json(response, 200, await matchReadApi.events(id, after));
+    }
+    if (matchReadApi && request.method === 'GET' && url.pathname.endsWith('/events/stream')) {
+      const id = matchPathId(url.pathname, '/events/stream');
+      const after = Number(url.searchParams.get('after') || request.headers['last-event-id'] || 0);
+      if (!Number.isInteger(after) || after < 0) throw new Error('after must be a non-negative integer');
+      return streamEvents(request, response, matchReadApi, id, after);
+    }
+    if (matchReadApi && request.method === 'GET' && url.pathname.endsWith('/transcript')) {
+      const transcript = await matchReadApi.transcript(matchPathId(url.pathname, '/transcript'));
+      return transcript ? json(response, 200, transcript) : json(response, 404, { error: 'Match not found' });
+    }
+    if (matchReadApi && request.method === 'GET' && url.pathname.startsWith('/v1/matches/')) {
+      const id = decodeURIComponent(url.pathname.slice('/v1/matches/'.length));
+      const match = await matchReadApi.get(id);
+      return match ? json(response, 200, match) : json(response, 404, { error: 'Match not found' });
     }
     const registry = readRegistry();
     if (request.method === 'GET' && url.pathname === '/v1/matches') {

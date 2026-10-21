@@ -25,6 +25,10 @@ import { AppleColors } from '@/theme/colors';
 import { Typography } from '@/theme/typography';
 import { Radii, Spacing } from '@/theme/spacing';
 
+function formatEvaluation(score: number) {
+  return `${score >= 0 ? '+' : ''}${score.toFixed(2)}`;
+}
+
 export default function MatchDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -296,15 +300,23 @@ export default function MatchDetailScreen() {
           {activeTab === 'analysis' && (
             <View style={styles.analysisBox}>
               <View style={styles.analysisRow}>
-                <Text style={styles.analysisKey}>Opening Classification</Text>
-                <Text style={styles.analysisVal}>Sicilian Defense: Najdorf (B90)</Text>
+                <Text style={styles.analysisKey}>White Opening</Text>
+                <Text style={styles.analysisVal}>{match.whiteAgent.stats.favoredOpening}</Text>
               </View>
               <View style={styles.analysisRow}>
                 <Text style={styles.analysisKey}>Engine Evaluation</Text>
                 <Text style={[styles.analysisVal, { color: AppleColors.systemBlue }]}>
-                  +{match.evalScore} (Advantage White)
+                  {formatEvaluation(match.evalScore)} pawns
                 </Text>
               </View>
+              {(match.engineAnalysis || []).map((line) => (
+                <View style={styles.analysisRow} key={`pv-${line.multiPv}`}>
+                  <Text style={styles.analysisKey}>PV {line.multiPv} · Depth {line.depth}</Text>
+                  <Text style={styles.analysisVal} numberOfLines={2}>
+                    {line.scoreMate === null ? `${line.scoreCp ?? 0} cp` : `Mate ${line.scoreMate}`} · {line.principalVariation.slice(0, 5).join(' ')}
+                  </Text>
+                </View>
+              ))}
               <View style={styles.analysisRow}>
                 <Text style={styles.analysisKey}>Replay Status</Text>
                 <Text style={styles.analysisVal}>{match.replay.terminationReason}</Text>

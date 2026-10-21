@@ -1,5 +1,6 @@
 import { Match } from '@/types/match';
 import { Agent } from '@/types/agent';
+import { EngineAnalysisLine, GameReplay, MoveStep, PieceColor, PieceType } from '@/types/chess';
 import { FERAS_MARKET_API_URL } from '@/services/solana/config';
 import { ApiError } from './client';
 
@@ -57,11 +58,84 @@ function fallbackAgent(color: 'White' | 'Black', matchId: string): Agent {
   };
 }
 
+function normalizeAgent(value: unknown, fallback: Agent): Agent {
+  const raw = isRecord(value) ? value : {};
+  const stats = isRecord(raw.stats) ? raw.stats : {};
+  const architecture = isRecord(raw.architecture) ? raw.architecture : {};
+  return {
+    ...fallback,
+    id: stringValue(raw.id, fallback.id),
+    name: stringValue(raw.name, fallback.name),
+    handle: stringValue(raw.handle, fallback.handle),
+    badgeEmoji: stringValue(raw.badgeEmoji, fallback.badgeEmoji),
+    stats: {
+      ...fallback.stats,
+      elo: numberValue(stats.elo, fallback.stats.elo),
+      peakElo: numberValue(stats.peakElo, fallback.stats.peakElo),
+      favoredOpening: stringValue(stats.favoredOpening, fallback.stats.favoredOpening),
+    },
+    architecture: {
+      ...fallback.architecture,
+      baseModel: stringValue(architecture.baseModel, fallback.architecture.baseModel),
+      parameters: stringValue(architecture.parameters, fallback.architecture.parameters),
+      searchAlgorithm: stringValue(architecture.searchAlgorithm, fallback.architecture.searchAlgorithm),
+      evalDepth: numberValue(architecture.evalDepth, fallback.architecture.evalDepth),
+    },
+  };
+}
+
+function asSquare(value: unknown): string | null {
+  return typeof value === 'string' && /^[a-h][1-8]$/.test(value) ? value : null;
+}
+
+function asPiece(value: unknown): PieceType | null {
+  return value === 'p' || value === 'n' || value === 'b' || value === 'r' || value === 'q' || value === 'k' ? value : null;
+}
+
+function normalizeAnalysis(value: unknown): EngineAnalysisLine[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((line) => {
+    if (!isRecord(line)) return [];
+    const pv = Array.isArray(line.principalVariation) && line.principalVariation.every((move) => typeof move === 'string')
+      ? line.principalVariation as string[]
+      : [];
+    const depth = numberValue(line.depth, 0);
+    if (depth <= 0 || pv.length === 0) return [];
+    return [{ depth, multiPv: numberValue(line.multiPv, 1), scoreCp: typeof line.scoreCp === 'number' ? line.scoreCp : null, scoreMate: typeof line.scoreMate === 'number' ? line.scoreMate : null, principalVariation: pv }];
+  });
+}
+
+function normalizeReplay(value: unknown, id: string): GameReplay {
+  const raw = isRecord(value) ? value : {};
+  const moves: MoveStep[] = !Array.isArray(raw.moves) ? [] : raw.moves.flatMap((value, index) => {
+    if (!isRecord(value)) return [];
+    const from = asSquare(value.from);
+    const to = asSquare(value.to);
+    const piece = asPiece(value.piece);
+    const color: PieceColor | null = value.color === 'w' || value.color === 'b' ? value.color : null;
+    if (!from || !to || !piece || !color) return [];
+    return [{
+      ply: numberValue(value.ply, index + 1), from, to, piece, color,
+      san: stringValue(value.san, `${from}-${to}`), fen: stringValue(value.fen, INITIAL_FEN),
+      evalCentipawns: typeof value.evalCentipawns === 'number' ? value.evalCentipawns : undefined,
+      analysis: normalizeAnalysis(value.analysis),
+      winProbabilityWhite: numberValue(value.winProbabilityWhite, 0.5),
+      timeSpentSec: numberValue(value.timeSpentSec, 0),
+      captured: asPiece(value.captured) || undefined,
+      promotion: value.promotion === 'q' || value.promotion === 'r' || value.promotion === 'b' || value.promotion === 'n' ? value.promotion : undefined,
+      isCheck: value.isCheck === true,
+      isCheckmate: value.isCheckmate === true,
+    }];
+  });
+  const result = raw.result === '1-0' || raw.result === '0-1' || raw.result === '1/2-1/2' ? raw.result : '*';
+  return { matchId: stringValue(raw.matchId, id), initialFen: stringValue(raw.initialFen, INITIAL_FEN), moves, result, terminationReason: stringValue(raw.terminationReason, 'In progress') };
+}
+
 function normalizeMatch(value: unknown): Match {
   const raw = isRecord(value) ? value : {};
   const id = stringValue(raw.id, 'unknown-market');
-  const whiteAgent = fallbackAgent('White', id);
-  const blackAgent = fallbackAgent('Black', id);
+  const whiteAgent = normalizeAgent(raw.whiteAgent, fallbackAgent('White', id));
+  const blackAgent = normalizeAgent(raw.blackAgent, fallbackAgent('Black', id));
   const estimates = isRecord(raw.marketEstimates) ? raw.marketEstimates : {};
   const status = raw.status === 'UPCOMING' || raw.status === 'COMPLETED' ? raw.status : 'LIVE';
 
@@ -85,15 +159,10 @@ function normalizeMatch(value: unknown): Match {
       blackMultiplier: numberValue(estimates.blackMultiplier, 2),
     },
     currentFen: stringValue(raw.currentFen, INITIAL_FEN),
-    replay: {
-      matchId: id,
-      initialFen: INITIAL_FEN,
-      moves: [],
-      result: '*',
-      terminationReason: 'Market is live on Devnet',
-    },
+    replay: normalizeReplay(raw.replay, id),
     startedAt: stringValue(raw.startedAt, new Date().toISOString()),
     evalScore: numberValue(raw.evalScore, 0),
+    engineAnalysis: normalizeAnalysis(raw.engineAnalysis),
   };
 }
 

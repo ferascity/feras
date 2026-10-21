@@ -1,5 +1,5 @@
 import { Agent } from './agent';
-import { GameReplay } from './chess';
+import { EngineAnalysisLine, GameReplay } from './chess';
 
 export type MatchStatus = 'LIVE' | 'UPCOMING' | 'COMPLETED';
 
@@ -27,4 +27,5 @@ export interface Match {
   replay: GameReplay;
   startedAt: string;
   evalScore: number; // e.g. +1.2
+  engineAnalysis?: EngineAnalysisLine[];
 }

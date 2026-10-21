@@ -1,6 +1,14 @@
 export type PieceType = 'p' | 'n' | 'b' | 'r' | 'q' | 'k';
 export type PieceColor = 'w' | 'b';
 
+export interface EngineAnalysisLine {
+  depth: number;
+  multiPv: number;
+  scoreCp: number | null;
+  scoreMate: number | null;
+  principalVariation: string[];
+}
+
 export interface MoveStep {
   ply: number;
   from: string;
@@ -10,6 +18,7 @@ export interface MoveStep {
   san: string;
   fen: string;
   evalCentipawns?: number; // e.g. +140 or -280
+  analysis?: EngineAnalysisLine[];
   winProbabilityWhite: number; // 0.0 to 1.0 (e.g. 0.58)
   commentary?: string;
   timeSpentSec?: number;
