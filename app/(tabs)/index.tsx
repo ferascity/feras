@@ -139,9 +139,13 @@ export default function HomeScreen() {
             {/* Live Header Tag */}
             <View style={styles.heroHeader}>
               <Tag
-                label={`LIVE · PLY ${heroMatch.currentPly}`}
-                type="live"
-                showDot
+                label={
+                  heroMatch.status === 'LIVE'
+                    ? `LIVE · PLY ${heroMatch.currentPly}`
+                    : heroMatch.status
+                }
+                type={heroMatch.status === 'LIVE' ? 'live' : 'upcoming'}
+                showDot={heroMatch.status === 'LIVE'}
               />
               <View style={styles.viewerBadge}>
                 <Ionicons name="eye" size={13} color={AppleColors.labelSecondary} />

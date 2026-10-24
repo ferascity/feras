@@ -51,8 +51,10 @@ jobs:
           EXPO_PUBLIC_SOLANA_RPC_URL: https://api.devnet.solana.com
           EXPO_PUBLIC_DEVNET_USDC_MINT: CwhBMtAs7tAHSabWrW2Dg2hgQ7Ktt7pW86UR35Be9VrU
           EXPO_PUBLIC_FERAS_MARKET_PROGRAM_ID: 3UJi7D53Cbj5TLGbbxFCzqW9vE7Ji5N5KKEdbQMWFaFA
-          EXPO_PUBLIC_FERAS_MARKET_API_URL: ${{ vars.FERAS_MARKET_API_URL }}
-          EXPO_PUBLIC_FERAS_DEVNET_MARKET_READY: ${{ vars.FERAS_DEVNET_MARKET_READY }}
+          # A repository variable may replace this host after a DNS/HTTPS cutover.
+          # Keep market signing unavailable until a reviewed on-chain market is locked.
+          EXPO_PUBLIC_FERAS_MARKET_API_URL: ${{ vars.FERAS_MARKET_API_URL || 'http://16.170.158.116:8787' }}
+          EXPO_PUBLIC_FERAS_DEVNET_MARKET_READY: ${{ vars.FERAS_DEVNET_MARKET_READY || 'false' }}
         run: |
           set -o pipefail
           export FERAS_NODE_EXECUTABLE="$(command -v node)"
