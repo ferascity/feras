@@ -53,7 +53,7 @@ jobs:
           EXPO_PUBLIC_FERAS_MARKET_PROGRAM_ID: 3UJi7D53Cbj5TLGbbxFCzqW9vE7Ji5N5KKEdbQMWFaFA
           # A repository variable may replace this host after a DNS/HTTPS cutover.
           # Keep market signing unavailable until a reviewed on-chain market is locked.
-          EXPO_PUBLIC_FERAS_MARKET_API_URL: ${{ vars.FERAS_MARKET_API_URL || 'http://13.50.113.226:8787' }}
+          EXPO_PUBLIC_FERAS_MARKET_API_URL: ${{ vars.FERAS_MARKET_API_URL || 'https://dqrwnhn2nif0u.cloudfront.net' }}
           EXPO_PUBLIC_FERAS_DEVNET_MARKET_READY: ${{ vars.FERAS_DEVNET_MARKET_READY || 'false' }}
         run: |
           set -o pipefail

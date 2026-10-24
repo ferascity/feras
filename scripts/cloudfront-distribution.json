@@ -1,0 +1,61 @@
+{
+  "CallerReference": "feras-api-20261024-v1",
+  "Comment": "Feras Devnet public API",
+  "Enabled": true,
+  "HttpVersion": "http2and3",
+  "PriceClass": "PriceClass_100",
+  "Origins": {
+    "Quantity": 1,
+    "Items": [
+      {
+        "Id": "feras-api-origin",
+        "DomainName": "13.50.113.226.nip.io",
+        "ConnectionAttempts": 3,
+        "ConnectionTimeout": 10,
+        "CustomOriginConfig": {
+          "HTTPPort": 8787,
+          "HTTPSPort": 443,
+          "OriginProtocolPolicy": "http-only",
+          "OriginReadTimeout": 30,
+          "OriginKeepaliveTimeout": 5,
+          "OriginSslProtocols": {
+            "Quantity": 1,
+            "Items": ["TLSv1.2"]
+          }
+        }
+      }
+    ]
+  },
+  "DefaultCacheBehavior": {
+    "TargetOriginId": "feras-api-origin",
+    "ViewerProtocolPolicy": "redirect-to-https",
+    "AllowedMethods": {
+      "Quantity": 3,
+      "Items": ["GET", "HEAD", "OPTIONS"],
+      "CachedMethods": {
+        "Quantity": 2,
+        "Items": ["GET", "HEAD"]
+      }
+    },
+    "ForwardedValues": {
+      "QueryString": true,
+      "Cookies": { "Forward": "none" },
+      "Headers": { "Quantity": 0 },
+      "QueryStringCacheKeys": { "Quantity": 0 }
+    },
+    "MinTTL": 0,
+    "DefaultTTL": 0,
+    "MaxTTL": 0,
+    "TrustedSigners": { "Enabled": false, "Quantity": 0 },
+    "TrustedKeyGroups": { "Enabled": false, "Quantity": 0 },
+    "Compress": true
+  },
+  "Restrictions": {
+    "GeoRestriction": { "RestrictionType": "none", "Quantity": 0 }
+  },
+  "ViewerCertificate": {
+    "CloudFrontDefaultCertificate": true,
+    "MinimumProtocolVersion": "TLSv1.2_2021",
+    "CertificateSource": "cloudfront"
+  }
+}
