@@ -89,3 +89,18 @@ jobs:
               Feras-${{ github.ref_name }}.apk.sha256 \
               --generate-notes
           fi
+
+      # The hackathon submission uses the v1.0.0 asset URL. Keep that fixed
+      # filename serving the most recently verified signed Android build.
+      - name: Refresh stable hackathon APK
+        if: github.ref_name != 'v1.0.0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha256sum Feras-${{ github.ref_name }}.apk \
+            | sed 's/Feras-${{ github.ref_name }}.apk/Feras-v1.0.0.apk/' \
+            > Feras-v1.0.0.apk.sha256
+          gh release upload v1.0.0 \
+            "Feras-${{ github.ref_name }}.apk#Feras-v1.0.0.apk" \
+            "Feras-v1.0.0.apk.sha256#Feras-v1.0.0.apk.sha256" \
+            --clobber
