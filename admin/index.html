@@ -3,81 +3,1076 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Feras Admin</title>
+    <title>Feras Authority Console</title>
     <style>
-      :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: #10131a; color: #f5f7fb; }
-      body { max-width: 860px; margin: 0 auto; padding: 40px 22px 64px; }
-      h1 { font-size: 28px; margin: 0 0 6px; } h2 { font-size: 18px; margin: 0 0 14px; }
-      p, .muted { color: #aab1bf; line-height: 1.45; } .notice { border-left: 3px solid #4a9cff; padding-left: 12px; }
-      section { border-top: 1px solid #303746; padding: 26px 0; } .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-      .field { background: #181d27; border: 1px solid #303746; border-radius: 6px; padding: 11px; overflow-wrap: anywhere; }
-      .label { color: #8992a4; display: block; font-size: 12px; margin-bottom: 4px; text-transform: uppercase; }
-      button { appearance: none; background: #2388ef; color: white; border: 0; border-radius: 6px; padding: 11px 15px; font-size: 15px; font-weight: 700; cursor: pointer; }
-      button.secondary { background: #252c39; } button:disabled { opacity: .5; cursor: not-allowed; }
-      input { background: #181d27; border: 1px solid #3a4353; border-radius: 5px; color: #fff; font-size: 16px; padding: 10px; width: 130px; }
-      .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; } #message { min-height: 24px; color: #7fc5ff; white-space: pre-wrap; } .error { color: #ff9f9f !important; }
-      @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+      :root {
+        color-scheme: dark;
+        --bg-page: #000000;
+        --bg-grouped: #0c0e12;
+        --card-bg: #14171f;
+        --card-bg-subtle: rgba(255, 255, 255, 0.035);
+        --card-border: rgba(255, 255, 255, 0.08);
+        --card-border-focus: rgba(10, 132, 255, 0.5);
+        --hairline: rgba(255, 255, 255, 0.06);
+        --label-primary: #ffffff;
+        --label-secondary: rgba(235, 235, 245, 0.65);
+        --label-tertiary: rgba(235, 235, 245, 0.38);
+        --system-blue: #0A84FF;
+        --system-blue-hover: #0071E3;
+        --system-blue-tint: rgba(10, 132, 255, 0.12);
+        --system-green: #30D158;
+        --system-green-tint: rgba(48, 209, 88, 0.12);
+        --system-orange: #FF9F0A;
+        --system-orange-tint: rgba(255, 159, 10, 0.12);
+        --system-red: #FF453A;
+        --system-red-tint: rgba(255, 69, 58, 0.12);
+        --system-purple: #BF5AF2;
+        --font-stack: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "SF Pro", ui-sans-serif, system-ui, sans-serif;
+        --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background-color: var(--bg-page);
+        color: var(--label-primary);
+        font-family: var(--font-stack);
+        font-size: 15px;
+        line-height: 1.45;
+        letter-spacing: -0.2px;
+        -webkit-font-smoothing: antialiased;
+        min-height: 100vh;
+        padding: 0 0 80px;
+      }
+
+      /* Apple Top Navigation Bar */
+      .nav-bar {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        backdrop-filter: blur(24px) saturate(180%);
+        -webkit-backdrop-filter: blur(24px) saturate(180%);
+        background-color: rgba(12, 14, 18, 0.82);
+        border-bottom: 1px solid var(--hairline);
+        padding: 14px 24px;
+      }
+      .nav-inner {
+        max-width: 940px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .nav-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .brand-mark {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #189bff, #0056b3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(24, 155, 255, 0.25);
+      }
+      .brand-title {
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: -0.3px;
+        color: var(--label-primary);
+      }
+      .brand-subtitle {
+        font-size: 12px;
+        color: var(--label-secondary);
+        font-weight: 400;
+      }
+      .nav-badges {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 9999px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: -0.1px;
+      }
+      .badge-cluster {
+        background: var(--system-blue-tint);
+        color: var(--system-blue);
+        border: 1px solid rgba(10, 132, 255, 0.2);
+      }
+      .badge-secure {
+        background: var(--card-bg-subtle);
+        color: var(--label-secondary);
+        border: 1px solid var(--card-border);
+      }
+      .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: var(--system-green);
+        box-shadow: 0 0 6px var(--system-green);
+      }
+
+      /* Page Layout Container */
+      .container {
+        max-width: 940px;
+        margin: 0 auto;
+        padding: 32px 24px 0;
+      }
+
+      /* Hero Header */
+      .page-header {
+        margin-bottom: 24px;
+      }
+      .page-eyebrow {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--system-blue);
+        margin-bottom: 4px;
+      }
+      .page-title {
+        font-size: 32px;
+        font-weight: 700;
+        letter-spacing: -0.6px;
+        color: var(--label-primary);
+        margin-bottom: 6px;
+      }
+      .page-desc {
+        font-size: 15px;
+        color: var(--label-secondary);
+        max-width: 680px;
+      }
+
+      /* System Banner / Status Toast */
+      .system-banner {
+        margin-bottom: 28px;
+        padding: 14px 18px;
+        border-radius: 12px;
+        background: rgba(10, 132, 255, 0.08);
+        border: 1px solid rgba(10, 132, 255, 0.2);
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        transition: all 0.2s ease;
+      }
+      .system-banner.error {
+        background: rgba(255, 69, 58, 0.08);
+        border-color: rgba(255, 69, 58, 0.25);
+      }
+      .system-banner.success {
+        background: rgba(48, 209, 88, 0.08);
+        border-color: rgba(48, 209, 88, 0.25);
+      }
+      .banner-icon {
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+      .banner-content {
+        flex: 1;
+      }
+      .banner-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--label-primary);
+        margin-bottom: 2px;
+      }
+      #message {
+        font-size: 13px;
+        color: var(--label-secondary);
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      #message.error {
+        color: #ff9f9f;
+        font-weight: 500;
+      }
+
+      /* iOS Segmented Navigation */
+      .segmented-nav {
+        display: flex;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--hairline);
+        border-radius: 10px;
+        padding: 3px;
+        margin-bottom: 32px;
+        gap: 2px;
+      }
+      .segment-btn {
+        flex: 1;
+        background: transparent;
+        border: none;
+        color: var(--label-secondary);
+        font-family: var(--font-stack);
+        font-size: 13px;
+        font-weight: 500;
+        padding: 8px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        text-align: center;
+      }
+      .segment-btn:hover {
+        color: var(--label-primary);
+      }
+      .segment-btn.active {
+        background: #252a36;
+        color: #ffffff;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+        font-weight: 600;
+      }
+
+      /* Sections & Grouped Inset Cards */
+      .section-group {
+        margin-bottom: 40px;
+      }
+      .section-header-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        padding: 0 4px;
+      }
+      .section-eyebrow {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        color: var(--label-tertiary);
+      }
+      .section-title {
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.3px;
+        color: var(--label-primary);
+        margin-bottom: 6px;
+      }
+      .section-desc {
+        font-size: 14px;
+        color: var(--label-secondary);
+        margin-bottom: 16px;
+        line-height: 1.45;
+      }
+
+      /* Apple Inset Card */
+      .card {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      }
+      .card-body {
+        padding: 20px;
+      }
+      .card-footer {
+        background: rgba(255, 255, 255, 0.02);
+        border-top: 1px solid var(--hairline);
+        padding: 14px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      /* Key-Value Inset Grid */
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .field {
+        background: var(--card-bg-subtle);
+        border: 1px solid var(--hairline);
+        border-radius: 10px;
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        overflow-wrap: anywhere;
+        transition: border-color 0.15s ease;
+      }
+      .field:hover {
+        border-color: rgba(255, 255, 255, 0.14);
+      }
+      .field .label {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--label-tertiary);
+      }
+      .field span:not(.label) {
+        font-size: 13px;
+        font-family: var(--font-mono);
+        color: var(--label-primary);
+        word-break: break-all;
+      }
+
+      /* Form Controls */
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .form-group.full {
+        grid-column: 1 / -1;
+      }
+      .control-label {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--label-secondary);
+      }
+      .control-help {
+        font-size: 12px;
+        color: var(--label-tertiary);
+        margin-top: 2px;
+      }
+      input[type="text"],
+      input[type="number"],
+      input[type="datetime-local"] {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--card-border);
+        border-radius: 10px;
+        color: #ffffff;
+        font-family: var(--font-stack);
+        font-size: 15px;
+        padding: 11px 14px;
+        width: 100%;
+        outline: none;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+      }
+      input:focus {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: var(--system-blue);
+        box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.25);
+      }
+
+      /* Preset Pills */
+      .preset-row {
+        display: flex;
+        gap: 6px;
+        margin-top: 6px;
+        flex-wrap: wrap;
+      }
+      .preset-pill {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--hairline);
+        color: var(--label-secondary);
+        font-family: var(--font-stack);
+        font-size: 12px;
+        font-weight: 500;
+        padding: 4px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .preset-pill:hover {
+        background: rgba(255, 255, 255, 0.12);
+        color: #ffffff;
+      }
+
+      /* Apple System Buttons */
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      button {
+        appearance: none;
+        -webkit-appearance: none;
+        font-family: var(--font-stack);
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: -0.2px;
+        padding: 10px 18px;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: opacity 0.15s ease, transform 0.08s ease, background 0.15s ease;
+        background: var(--system-blue);
+        color: #ffffff;
+      }
+      button:active:not(:disabled) {
+        transform: scale(0.98);
+      }
+      button.secondary {
+        background: rgba(255, 255, 255, 0.08);
+        color: #5ac8fa;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      button.secondary:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.14);
+        color: #ffffff;
+      }
+      button:disabled {
+        opacity: 0.38;
+        cursor: not-allowed;
+      }
+
+      /* Step Callout */
+      .callout {
+        background: rgba(255, 255, 255, 0.025);
+        border: 1px dashed rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        padding: 14px 16px;
+        margin-top: 16px;
+      }
+      .callout-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--label-primary);
+        margin-bottom: 6px;
+      }
+      .callout-steps {
+        list-style: none;
+        counter-reset: callout-counter;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .callout-steps li {
+        counter-increment: callout-counter;
+        font-size: 13px;
+        color: var(--label-secondary);
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+      }
+      .callout-steps li::before {
+        content: counter(callout-counter);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--label-tertiary);
+        font-size: 11px;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+      .code-snippet {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid var(--hairline);
+        padding: 8px 12px;
+        border-radius: 6px;
+        color: #7fc5ff;
+        display: block;
+        margin-top: 6px;
+        word-break: break-all;
+        user-select: all;
+      }
+
+      /* Copy Button */
+      .btn-copy {
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--label-secondary);
+        font-size: 11px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        margin-top: 6px;
+        display: inline-flex;
+        border: 1px solid var(--hairline);
+      }
+      .btn-copy:hover {
+        background: rgba(255, 255, 255, 0.12);
+        color: #ffffff;
+      }
+
+      @media (max-width: 680px) {
+        .grid, .form-grid {
+          grid-template-columns: 1fr;
+        }
+        .nav-inner {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 12px;
+        }
+        .segmented-nav {
+          flex-wrap: wrap;
+        }
+      }
     </style>
   </head>
   <body>
-    <h1>Feras Admin</h1>
-    <p class="notice">Local Devnet tool. It is not part of the mobile product. Review every wallet prompt and reject anything that differs from the details below.</p>
-    <p id="message">Loading verified deployment state...</p>
-    <section>
-      <h2>Deployment State</h2>
-      <div id="status" class="grid"></div>
-    </section>
-    <section>
-      <h2>Upgrade Authority Handoff</h2>
-      <p>Connect only the configured new upgrade-authority wallet. The local server partially signs the checked loader instruction with the temporary CLI authority; your extension provides the required second signature.</p>
-      <div id="upgrade-review" class="grid"></div>
-      <div class="actions"><button id="upgrade-connect">Connect upgrade wallet</button><button id="upgrade-sign" disabled>Review and sign handoff</button></div>
-    </section>
-    <section>
-      <h2>Initialize Platform Configuration</h2>
-      <p>Connect only the configured platform-authority wallet. It pays account rent and becomes the on-chain Feras configuration authority.</p>
-      <label class="label" for="fee">Platform fee (basis points)</label><input id="fee" type="number" min="0" max="1000" value="200" />
-      <label class="label" for="claim" style="margin-top:14px">Claim window (seconds)</label><input id="claim" type="number" min="1" max="15552000" value="2592000" />
-      <div id="config-review" class="grid" style="margin-top:16px"></div>
-      <div class="actions"><button id="config-connect" class="secondary">Connect platform wallet</button><button id="config-sign" disabled>Review and sign configuration</button></div>
-    </section>
-    <section>
-      <h2>Create Devnet Market</h2>
-      <p>Creates one open market and its program-owned Devnet USDC vault. The canonical match ID becomes part of the on-chain PDA and cannot be edited later.</p>
-      <label class="label" for="match-id">Canonical match ID</label><input id="match-id" value="feras-devnet-smoke-001" style="width:260px" />
-      <label class="label" for="match-title" style="margin-top:14px">Match title</label><input id="match-title" value="Feras Devnet Smoke Test" style="width:300px" />
-      <label class="label" for="market-lock" style="margin-top:14px">Lock time</label><input id="market-lock" type="datetime-local" style="width:260px" />
-      <div id="market-review" class="grid" style="margin-top:16px"></div>
-      <div class="actions"><button id="market-connect" class="secondary">Connect platform wallet</button><button id="market-sign" disabled>Review and create market</button></div>
-    </section>
-    <section>
-      <h2>Distribute Devnet USDC</h2>
-      <p>Funds a tester wallet from the fixed Devnet test-USDC supply. It cannot mint tokens and signs only from the configured distribution wallet.</p>
-      <label class="label" for="recipient">Tester wallet address</label><input id="recipient" placeholder="Devnet wallet address" style="width:min(100%, 460px)" />
-      <label class="label" for="distribution-amount" style="margin-top:14px">Amount</label><input id="distribution-amount" value="100" inputmode="decimal" />
-      <div id="distribution-review" class="grid" style="margin-top:16px"></div>
-      <div class="actions"><button id="distribution-connect" class="secondary">Connect distribution wallet</button><button id="distribution-sign" disabled>Review and distribute</button></div>
-    </section>
+    <!-- Apple Top Navigation Bar -->
+    <header class="nav-bar">
+      <div class="nav-inner">
+        <div class="nav-brand">
+          <div class="brand-mark">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:#ffffff;">
+              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </div>
+          <div>
+            <div class="brand-title">Feras Authority Console</div>
+            <div class="brand-subtitle">Non-Custodial Market & Platform Operations</div>
+          </div>
+        </div>
+        <div class="nav-badges">
+          <div class="badge badge-cluster">
+            <span class="status-dot"></span>
+            <span>Solana Devnet</span>
+          </div>
+          <div class="badge badge-secure">Loopback 127.0.0.1</div>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <!-- Hero Header -->
+      <div class="page-header">
+        <div class="page-eyebrow">Local Infrastructure</div>
+        <h1 class="page-title">Platform Operations</h1>
+        <p class="page-desc">
+          Authorized developer environment for program lifecycle, market creation, locking, and test-credit distribution. Wallet signing material remains securely in your browser extension.
+        </p>
+      </div>
+
+      <!-- Live Feedback Banner -->
+      <div id="banner" class="system-banner">
+        <div class="banner-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="color:var(--system-blue);">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+        </div>
+        <div class="banner-content">
+          <div class="banner-title">System Status</div>
+          <div id="message">Loading verified deployment state...</div>
+        </div>
+      </div>
+
+      <!-- Segmented Navigation Filter -->
+      <nav class="segmented-nav" aria-label="Section Filter">
+        <button type="button" class="segment-btn active" data-filter="all">All Operations</button>
+        <button type="button" class="segment-btn" data-filter="market-create">Create Market</button>
+        <button type="button" class="segment-btn" data-filter="market-lock">Lock Market</button>
+        <button type="button" class="segment-btn" data-filter="faucet">USDC Faucet</button>
+        <button type="button" class="segment-btn" data-filter="config">Config & Auth</button>
+      </nav>
+
+      <!-- Section: Deployment State Overview -->
+      <section class="section-group" data-section="all,config">
+        <div class="section-header-row">
+          <div>
+            <div class="section-eyebrow">On-Chain State</div>
+            <h2 class="section-title">Deployment Overview</h2>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <div id="status" class="grid"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Create Devnet Market -->
+      <section class="section-group" data-section="all,market-create">
+        <div class="section-header-row">
+          <div>
+            <div class="section-eyebrow">Step 1 of 2 • Market Lifecycle</div>
+            <h2 class="section-title">Create Devnet Market</h2>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <p class="section-desc">
+              Creates an open pari-mutuel market PDA and its associated test-USDC vault. The canonical match ID becomes part of the on-chain PDA and cannot be changed later.
+            </p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="control-label" for="match-id">Canonical Match ID</label>
+                <input id="match-id" value="feras-devnet-smoke-001" placeholder="e.g. feras-devnet-grandprix-001" />
+                <span class="control-help">Unique 3-96 character slug matching the backend match</span>
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="match-title">Match Title</label>
+                <input id="match-title" value="Feras Devnet Smoke Test" placeholder="e.g. Grand Prix Round 1" />
+                <span class="control-help">Human-readable title displayed in the Arena</span>
+              </div>
+              <div class="form-group full">
+                <label class="control-label" for="market-lock">Lock Time (UTC / Local)</label>
+                <input id="market-lock" type="datetime-local" />
+                <div class="preset-row">
+                  <span class="control-help" style="margin-right:6px">Quick presets:</span>
+                  <button type="button" class="preset-pill" onclick="setLockPreset(5)">+5 Min</button>
+                  <button type="button" class="preset-pill" onclick="setLockPreset(15)">+15 Min</button>
+                  <button type="button" class="preset-pill" onclick="setLockPreset(60)">+1 Hour</button>
+                  <button type="button" class="preset-pill" onclick="setLockPreset(1440)">+24 Hours</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Review Output -->
+            <div id="market-review" class="grid" style="margin-top: 16px;"></div>
+
+            <!-- Operational Step Guidance -->
+            <div class="callout">
+              <div class="callout-header">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--system-blue);"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                Deploying A Game Step-by-Step
+              </div>
+              <ol class="callout-steps">
+                <li>Create the backend match: <code class="code-snippet">npm run create:match -- --id &lt;id&gt; --title "&lt;title&gt;" --lock-at "&lt;iso-time&gt;"</code></li>
+                <li>Connect your Platform Authority wallet below and click <strong>Review and create market</strong>.</li>
+                <li>After confirmation, link it into PostgreSQL using the CLI command:
+                  <code id="create-cli-preview" class="code-snippet">npm run confirm:market -- --id &lt;match-id&gt; --market &lt;market-pda&gt; --vault &lt;vault-ata&gt; --signature &lt;sig&gt; --command CREATE</code>
+                </li>
+              </ol>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="actions">
+              <button id="market-connect" type="button" class="secondary">Connect Platform Wallet</button>
+              <button id="market-sign" type="button" disabled>Review and Create Market</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Lock Devnet Market -->
+      <section class="section-group" data-section="all,market-lock">
+        <div class="section-header-row">
+          <div>
+            <div class="section-eyebrow">Step 2 of 2 • Market Lifecycle</div>
+            <h2 class="section-title">Lock Devnet Market</h2>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <p class="section-desc">
+              Locks the market at or after its scheduled lock time, permanently halting incoming positions so the authoritative Stockfish coordinator can begin live execution.
+            </p>
+            <div class="form-grid">
+              <div class="form-group full">
+                <label class="control-label" for="lock-match-id">Canonical Market ID</label>
+                <input id="lock-match-id" value="feras-devnet-smoke-001" placeholder="Must match the created market ID" />
+                <span class="control-help">Only executable at or after the on-chain lock timestamp</span>
+              </div>
+            </div>
+
+            <!-- Lock Review Output -->
+            <div id="lock-review" class="grid" style="margin-top: 16px;"></div>
+
+            <!-- Lock Step Guidance -->
+            <div class="callout">
+              <div class="callout-header">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--system-green);"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                Starting The Game
+              </div>
+              <ol class="callout-steps">
+                <li>Wait until the lock time is reached on-chain.</li>
+                <li>Connect Platform Authority wallet and click <strong>Review and lock market</strong>.</li>
+                <li>Confirm the lock in backend:
+                  <code id="lock-cli-preview" class="code-snippet">npm run confirm:market -- --id &lt;match-id&gt; --market &lt;market-pda&gt; --vault &lt;vault-ata&gt; --signature &lt;sig&gt; --command LOCK</code>
+                </li>
+                <li>The backend coordinator immediately transitions the match to <strong>LIVE</strong> and begins executing Stockfish moves!</li>
+              </ol>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="actions">
+              <button id="lock-connect" type="button" class="secondary">Connect Platform Wallet</button>
+              <button id="lock-sign" type="button" disabled>Review and Lock Market</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Distribute Devnet USDC -->
+      <section class="section-group" data-section="all,faucet">
+        <div class="section-header-row">
+          <div>
+            <div class="section-eyebrow">Faucet • Test Credits</div>
+            <h2 class="section-title">Distribute Devnet USDC</h2>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <p class="section-desc">
+              Funds tester Android wallets from the fixed-supply Devnet test-USDC distribution vault. This transfers pre-minted test credit; it cannot inflate supply or mint new tokens.
+            </p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="control-label" for="recipient">Tester Wallet Address</label>
+                <input id="recipient" placeholder="Solana Devnet wallet address (base58)" />
+                <span class="control-help">The tester's connected Solflare or Phantom address</span>
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="distribution-amount">Amount (Devnet USDC)</label>
+                <input id="distribution-amount" value="100" inputmode="decimal" />
+                <div class="preset-row">
+                  <span class="control-help" style="margin-right:6px">Presets:</span>
+                  <button type="button" class="preset-pill" onclick="setDistAmount(25)">25 USDC</button>
+                  <button type="button" class="preset-pill" onclick="setDistAmount(50)">50 USDC</button>
+                  <button type="button" class="preset-pill" onclick="setDistAmount(100)">100 USDC</button>
+                  <button type="button" class="preset-pill" onclick="setDistAmount(250)">250 USDC</button>
+                  <button type="button" class="preset-pill" onclick="setDistAmount(500)">500 USDC</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Review Output -->
+            <div id="distribution-review" class="grid" style="margin-top: 16px;"></div>
+          </div>
+          <div class="card-footer">
+            <div class="actions">
+              <button id="distribution-connect" type="button" class="secondary">Connect Distribution Wallet</button>
+              <button id="distribution-sign" type="button" disabled>Review and Distribute</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Initialize Platform Configuration -->
+      <section class="section-group" data-section="all,config">
+        <div class="section-header-row">
+          <div>
+            <div class="section-eyebrow">One-Time Setup • Protocol PDA</div>
+            <h2 class="section-title">Platform Configuration</h2>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <p class="section-desc">
+              Initializes the on-chain Config PDA with protocol fee basis points, claim window duration, and distinct authority assignments.
+            </p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="control-label" for="fee">Platform Fee (Basis Points)</label>
+                <input id="fee" type="number" min="0" max="1000" value="200" />
+                <span class="control-help">200 bps = 2.0% protocol fee capped at 1,000 bps</span>
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="claim">Claim Window (Seconds)</label>
+                <input id="claim" type="number" min="1" max="15552000" value="2592000" />
+                <span class="control-help">2,592,000s = 30 days window for winners to claim payouts</span>
+              </div>
+            </div>
+
+            <div id="config-review" class="grid" style="margin-top: 16px;"></div>
+          </div>
+          <div class="card-footer">
+            <div class="actions">
+              <button id="config-connect" type="button" class="secondary">Connect Platform Wallet</button>
+              <button id="config-sign" type="button" disabled>Review and Sign Configuration</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Upgrade Authority Handoff -->
+      <section class="section-group" data-section="all,config">
+        <div class="section-header-row">
+          <div>
+            <div class="section-eyebrow">Security • Upgradable BPF Loader</div>
+            <h2 class="section-title">Upgrade Authority Handoff</h2>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <p class="section-desc">
+              Rotates the deployed program's upgrade authority from the temporary CLI deployer keypair to the dedicated multisig/cold wallet via <code>SetAuthorityChecked</code>.
+            </p>
+            <div id="upgrade-review" class="grid" style="margin-top: 16px;"></div>
+          </div>
+          <div class="card-footer">
+            <div class="actions">
+              <button id="upgrade-connect" type="button" class="secondary">Connect Upgrade Wallet</button>
+              <button id="upgrade-sign" type="button" disabled>Review and Sign Handoff</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
     <script type="module" nonce="{{CSP_NONCE}}">
       const $ = (id) => document.getElementById(id);
-      const state = { status: null, upgradeWallet: null, platformWallet: null };
-      function message(value, error = false) { $('message').textContent = value; $('message').className = error ? 'error' : ''; }
-      function short(value) { return value ? `${value.slice(0, 6)}...${value.slice(-5)}` : 'None'; }
-      function render(target, values) { target.replaceChildren(...Object.entries(values).map(([label, value]) => { const node = document.createElement('div'); node.className='field'; const key=document.createElement('span'); key.className='label'; key.textContent=label; const text=document.createElement('span'); text.textContent=value; node.append(key,text); return node; })); }
-      async function request(url, body) { const response = await fetch(url, body === undefined ? {} : { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }); const json = await response.json(); if (!response.ok) throw new Error(json.error || 'Request failed'); return json; }
-      function provider() { return window.solflare?.isSolflare ? window.solflare : window.phantom?.solana?.isPhantom ? window.phantom.solana : window.solana; }
-      async function connect(expected, role) { const wallet = provider(); if (!wallet) throw new Error('Solflare or Phantom was not detected in this browser.'); const result = await wallet.connect(); const connectedKey = result?.publicKey || wallet.publicKey; if (!connectedKey) throw new Error('The wallet connected but did not provide an active Solana address.'); const address = typeof connectedKey === 'string' ? connectedKey : connectedKey.toString(); if (address !== expected) throw new Error(`Connected ${short(address)}. Switch the extension to the configured ${role} account before continuing.`); return wallet; }
-      async function signAndSubmit(wallet, prepareUrl, submitUrl, body) { const prepared = await request(prepareUrl, body || {}); const { Transaction } = await import('https://esm.sh/@solana/web3.js@1.99.0?bundle'); const transaction = Transaction.from(Uint8Array.from(atob(prepared.transaction), char => char.charCodeAt(0))); const signed = await wallet.signTransaction(transaction); const encoded = btoa(String.fromCharCode(...signed.serialize({ requireAllSignatures:true, verifySignatures:true }))); const result = await request(submitUrl, { transaction: encoded, ...(prepared.draftId ? { draftId: prepared.draftId } : {}) }); return { review: prepared.review, signature: result.signature }; }
-      async function load() { state.status = await request('/api/status'); render($('status'), { 'Cluster': state.status.cluster, 'Program': state.status.programId, 'Current upgrade authority': state.status.currentUpgradeAuthority || 'None', 'Required upgrade authority': state.status.expectedUpgradeAuthority, 'Config PDA': state.status.configPda, 'Config initialized': String(state.status.configInitialized) }); render($('upgrade-review'), { 'Program': state.status.programId, 'ProgramData': state.status.programData, 'New authority': state.status.expectedUpgradeAuthority, 'Instruction': 'Upgradeable BPF Loader: SetAuthorityChecked' }); if (state.status.configInitialized) { $('config-connect').disabled = true; $('config-sign').disabled = true; } }
-      $('upgrade-connect').onclick = async () => { try { state.upgradeWallet = await connect(state.status.expectedUpgradeAuthority, 'upgrade authority'); $('upgrade-sign').disabled = false; message('Correct upgrade authority connected.'); } catch (error) { message(error.message, true); } };
-      $('upgrade-sign').onclick = async () => { try { if (!confirm('Approve only a Devnet checked upgrade-authority handoff for the displayed Feras program.')) return; const result = await signAndSubmit(state.upgradeWallet, '/api/upgrade/prepare', '/api/upgrade/submit'); message(`Upgrade authority updated. Devnet transaction: ${result.signature}`); await load(); } catch (error) { message(error.message, true); } };
-      $('config-connect').onclick = async () => { try { state.platformWallet = await connect(state.status.platformAuthority, 'platform authority'); $('config-sign').disabled = false; message('Correct platform authority connected.'); } catch (error) { message(error.message, true); } };
-      $('config-sign').onclick = async () => { try { const policy = { feeBasisPoints:Number($('fee').value), claimWindowSeconds:Number($('claim').value) }; if (!confirm(`Initialize Devnet config with ${policy.feeBasisPoints} bps and a ${policy.claimWindowSeconds}-second claim window?`)) return; const result = await signAndSubmit(state.platformWallet, '/api/config/prepare', '/api/config/submit', policy); message(`Platform config initialized. Devnet transaction: ${result.signature}`); await load(); } catch (error) { message(error.message, true); } };
-      $('market-connect').onclick = async () => { try { state.marketWallet = await connect(state.status.platformAuthority, 'platform authority'); $('market-sign').disabled = false; message('Correct platform authority connected for market creation.'); } catch (error) { message(error.message, true); } };
-      $('market-sign').onclick = async () => { try { const lockTime = Math.floor(new Date($('market-lock').value).getTime() / 1000); const draft = { matchId:$('match-id').value, title:$('match-title').value, category:'DEVNET', lockTime }; if (!confirm(`Create the Devnet market ${draft.matchId}? This canonical ID cannot be changed.`)) return; const result = await signAndSubmit(state.marketWallet, '/api/market/prepare', '/api/market/submit', draft); message(`Devnet market created. Transaction: ${result.signature}`); render($('market-review'), { 'Market': result.review.market, 'Vault': result.review.vault, 'Lock time': new Date(result.review.lockTime * 1000).toLocaleString() }); } catch (error) { message(error.message, true); } };
-      $('distribution-connect').onclick = async () => { try { state.distributionWallet = await connect('6RCii2MVfkFEcRX9LvgTtr9PskRoDTio77DTCuRTwXsc', 'distribution authority'); $('distribution-sign').disabled = false; message('Correct distribution authority connected.'); } catch (error) { message(error.message, true); } };
-      $('distribution-sign').onclick = async () => { try { const draft = { recipient:$('recipient').value, amount:$('distribution-amount').value }; if (!confirm(`Distribute ${draft.amount} Devnet USDC to the displayed tester wallet?`)) return; const result = await signAndSubmit(state.distributionWallet, '/api/distribution/prepare', '/api/distribution/submit', draft); message(`Devnet USDC distributed. Transaction: ${result.signature}`); render($('distribution-review'), { 'Recipient': result.review.recipient, 'Amount': `${result.review.amount} Devnet USDC`, 'Recipient token account': result.review.destination }); } catch (error) { message(error.message, true); } };
-      const defaultLock = new Date(Date.now() + 24 * 60 * 60 * 1000); $('market-lock').value = `${defaultLock.getFullYear()}-${String(defaultLock.getMonth()+1).padStart(2,'0')}-${String(defaultLock.getDate()).padStart(2,'0')}T${String(defaultLock.getHours()).padStart(2,'0')}:${String(defaultLock.getMinutes()).padStart(2,'0')}`;
+      const state = {
+        status: null,
+        upgradeWallet: null,
+        platformWallet: null,
+        marketWallet: null,
+        lockWallet: null,
+        distributionWallet: null,
+      };
+
+      // Banner update with visual feedback
+      function message(value, error = false) {
+        const msgEl = $('message');
+        const bannerEl = $('banner');
+        msgEl.textContent = value;
+        msgEl.className = error ? 'error' : '';
+        bannerEl.className = error ? 'system-banner error' : 'system-banner success';
+      }
+
+      function short(value) {
+        return value ? `${value.slice(0, 6)}...${value.slice(-5)}` : 'None';
+      }
+
+      function render(target, values) {
+        target.replaceChildren(...Object.entries(values).map(([label, value]) => {
+          const node = document.createElement('div');
+          node.className = 'field';
+          const key = document.createElement('span');
+          key.className = 'label';
+          key.textContent = label;
+          const text = document.createElement('span');
+          text.textContent = value;
+          node.append(key, text);
+          return node;
+        }));
+      }
+
+      async function request(url, body) {
+        const response = await fetch(url, body === undefined ? {} : {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const json = await response.json();
+        if (!response.ok) throw new Error(json.error || 'Request failed');
+        return json;
+      }
+
+      function provider() {
+        return window.solflare?.isSolflare ? window.solflare : window.phantom?.solana?.isPhantom ? window.phantom.solana : window.solana;
+      }
+
+      async function connect(expected, role) {
+        const wallet = provider();
+        if (!wallet) throw new Error('Solflare or Phantom extension was not detected in this browser.');
+        const result = await wallet.connect();
+        const connectedKey = result?.publicKey || wallet.publicKey;
+        if (!connectedKey) throw new Error('The wallet connected but did not provide an active Solana address.');
+        const address = typeof connectedKey === 'string' ? connectedKey : connectedKey.toString();
+        if (address !== expected) {
+          throw new Error(`Connected ${short(address)}. Switch the extension to the configured ${role} account before continuing:\n${expected}`);
+        }
+        return wallet;
+      }
+
+      async function signAndSubmit(wallet, prepareUrl, submitUrl, body) {
+        const prepared = await request(prepareUrl, body || {});
+        const { Transaction } = await import('https://esm.sh/@solana/web3.js@1.99.0?bundle');
+        const transaction = Transaction.from(Uint8Array.from(atob(prepared.transaction), char => char.charCodeAt(0)));
+        const signed = await wallet.signTransaction(transaction);
+        const encoded = btoa(String.fromCharCode(...signed.serialize({ requireAllSignatures: true, verifySignatures: true })));
+        const result = await request(submitUrl, {
+          transaction: encoded,
+          ...(prepared.draftId ? { draftId: prepared.draftId } : {}),
+        });
+        return { review: prepared.review, signature: result.signature };
+      }
+
+      async function load() {
+        state.status = await request('/api/status');
+        render($('status'), {
+          'Cluster': state.status.cluster.toUpperCase(),
+          'Program ID': state.status.programId,
+          'Current Upgrade Authority': state.status.currentUpgradeAuthority || 'None',
+          'Expected Upgrade Authority': state.status.expectedUpgradeAuthority,
+          'Platform Authority': state.status.platformAuthority,
+          'Config PDA': state.status.configPda,
+          'Config Status': state.status.configInitialized ? 'INITIALIZED (Active)' : 'PENDING (Uninitialized)',
+        });
+
+        render($('upgrade-review'), {
+          'Program ID': state.status.programId,
+          'ProgramData Account': state.status.programData,
+          'New Upgrade Authority': state.status.expectedUpgradeAuthority,
+          'Instruction': 'Upgradeable BPF Loader: SetAuthorityChecked',
+        });
+
+        if (state.status.configInitialized) {
+          $('config-connect').disabled = true;
+          $('config-sign').disabled = true;
+        }
+
+        message('System ready. Solana Devnet connection verified.');
+      }
+
+      // Quick Lock Preset Helpers
+      window.setLockPreset = (minutes) => {
+        const date = new Date(Date.now() + minutes * 60 * 1000);
+        const pad = (n) => String(n).padStart(2, '0');
+        $('market-lock').value = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+      };
+
+      window.setDistAmount = (amount) => {
+        $('distribution-amount').value = amount;
+      };
+
+      // Segmented Navigation Filter Logic
+      document.querySelectorAll('.segment-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.segment-btn').forEach((b) => b.classList.remove('active'));
+          btn.classList.add('active');
+          const filter = btn.dataset.filter;
+          document.querySelectorAll('.section-group').forEach((section) => {
+            const targets = (section.dataset.section || '').split(',');
+            if (filter === 'all' || targets.includes(filter)) {
+              section.style.display = 'block';
+            } else {
+              section.style.display = 'none';
+            }
+          });
+        });
+      });
+
+      // Actions
+      $('upgrade-connect').onclick = async () => {
+        try {
+          state.upgradeWallet = await connect(state.status.expectedUpgradeAuthority, 'upgrade authority');
+          $('upgrade-sign').disabled = false;
+          message('Upgrade authority wallet connected successfully.');
+        } catch (error) { message(error.message, true); }
+      };
+
+      $('upgrade-sign').onclick = async () => {
+        try {
+          if (!confirm('Approve only a Devnet checked upgrade-authority handoff for the displayed Feras program.')) return;
+          const result = await signAndSubmit(state.upgradeWallet, '/api/upgrade/prepare', '/api/upgrade/submit');
+          message(`Upgrade authority updated successfully!\nDevnet Signature: ${result.signature}`);
+          await load();
+        } catch (error) { message(error.message, true); }
+      };
+
+      $('config-connect').onclick = async () => {
+        try {
+          state.platformWallet = await connect(state.status.platformAuthority, 'platform authority');
+          $('config-sign').disabled = false;
+          message('Platform authority wallet connected successfully.');
+        } catch (error) { message(error.message, true); }
+      };
+
+      $('config-sign').onclick = async () => {
+        try {
+          const policy = { feeBasisPoints: Number($('fee').value), claimWindowSeconds: Number($('claim').value) };
+          if (!confirm(`Initialize Devnet config with ${policy.feeBasisPoints} bps fee and ${policy.claimWindowSeconds}s claim window?`)) return;
+          const result = await signAndSubmit(state.platformWallet, '/api/config/prepare', '/api/config/submit', policy);
+          message(`Platform config initialized!\nDevnet Signature: ${result.signature}`);
+          await load();
+        } catch (error) { message(error.message, true); }
+      };
+
+      $('market-connect').onclick = async () => {
+        try {
+          state.marketWallet = await connect(state.status.platformAuthority, 'platform authority');
+          $('market-sign').disabled = false;
+          message('Platform authority wallet connected for market creation.');
+        } catch (error) { message(error.message, true); }
+      };
+
+      $('market-sign').onclick = async () => {
+        try {
+          const lockTime = Math.floor(new Date($('market-lock').value).getTime() / 1000);
+          const draft = { matchId: $('match-id').value, title: $('match-title').value, category: 'DEVNET', lockTime };
+          if (!confirm(`Create on-chain market for ${draft.matchId}? Lock time: ${new Date(lockTime * 1000).toLocaleString()}`)) return;
+          const result = await signAndSubmit(state.marketWallet, '/api/market/prepare', '/api/market/submit', draft);
+          message(`Market created on Devnet!\nSignature: ${result.signature}`);
+          render($('market-review'), {
+            'Market PDA': result.review.market,
+            'Vault ATA': result.review.vault,
+            'Lock Time': new Date(result.review.lockTime * 1000).toLocaleString(),
+            'Confirmation CLI': `npm run confirm:market -- --id ${draft.matchId} --market ${result.review.market} --vault ${result.review.vault} --signature ${result.signature} --command CREATE`
+          });
+          $('create-cli-preview').textContent = `npm run confirm:market -- --id ${draft.matchId} --market ${result.review.market} --vault ${result.review.vault} --signature ${result.signature} --command CREATE`;
+          $('lock-match-id').value = draft.matchId;
+        } catch (error) { message(error.message, true); }
+      };
+
+      $('lock-connect').onclick = async () => {
+        try {
+          state.lockWallet = await connect(state.status.platformAuthority, 'platform authority');
+          $('lock-sign').disabled = false;
+          message('Platform authority wallet connected for market lock.');
+        } catch (error) { message(error.message, true); }
+      };
+
+      $('lock-sign').onclick = async () => {
+        try {
+          const draft = { matchId: $('lock-match-id').value };
+          if (!confirm(`Lock market ${draft.matchId}? New positions will immediately cease.`)) return;
+          const result = await signAndSubmit(state.lockWallet, '/api/market/lock/prepare', '/api/market/lock/submit', draft);
+          message(`Market locked on Devnet!\nSignature: ${result.signature}`);
+          render($('lock-review'), {
+            'Market PDA': result.review.market,
+            'Vault ATA': result.review.vault,
+            'Lock Time': new Date(result.review.lockTime * 1000).toLocaleString(),
+            'Chain Time': new Date(result.review.chainTime * 1000).toLocaleString(),
+            'Confirmation CLI': `npm run confirm:market -- --id ${draft.matchId} --market ${result.review.market} --vault ${result.review.vault} --signature ${result.signature} --command LOCK`
+          });
+          $('lock-cli-preview').textContent = `npm run confirm:market -- --id ${draft.matchId} --market ${result.review.market} --vault ${result.review.vault} --signature ${result.signature} --command LOCK`;
+        } catch (error) { message(error.message, true); }
+      };
+
+      $('distribution-connect').onclick = async () => {
+        try {
+          state.distributionWallet = await connect('6RCii2MVfkFEcRX9LvgTtr9PskRoDTio77DTCuRTwXsc', 'distribution authority');
+          $('distribution-sign').disabled = false;
+          message('Distribution authority wallet connected.');
+        } catch (error) { message(error.message, true); }
+      };
+
+      $('distribution-sign').onclick = async () => {
+        try {
+          const draft = { recipient: $('recipient').value, amount: $('distribution-amount').value };
+          if (!confirm(`Distribute ${draft.amount} Devnet USDC to recipient:\n${draft.recipient}?`)) return;
+          const result = await signAndSubmit(state.distributionWallet, '/api/distribution/prepare', '/api/distribution/submit', draft);
+          message(`Devnet USDC distributed!\nSignature: ${result.signature}`);
+          render($('distribution-review'), {
+            'Recipient': result.review.recipient,
+            'Amount Distributed': `${result.review.amount} Devnet USDC`,
+            'Recipient Token Account': result.review.destination,
+            'Devnet Signature': result.signature
+          });
+        } catch (error) { message(error.message, true); }
+      };
+
+      // Set default lock to +24 hours
+      const defaultLock = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const pad = (n) => String(n).padStart(2, '0');
+      $('market-lock').value = `${defaultLock.getFullYear()}-${pad(defaultLock.getMonth() + 1)}-${pad(defaultLock.getDate())}T${pad(defaultLock.getHours())}:${pad(defaultLock.getMinutes())}`;
+
       load().catch((error) => message(error.message, true));
     </script>
   </body>

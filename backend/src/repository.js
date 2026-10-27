@@ -144,6 +144,19 @@ class MatchRepository {
   async attachMarket(matchId, { marketAddress, vaultAddress }) {
     await this.pool.query('UPDATE matches SET market_address=$2, vault_address=$3, updated_at=NOW() WHERE id=$1', [matchId, marketAddress, vaultAddress]);
   }
+
+  async confirmMarketCommand(matchId, commandType, signature) {
+    const result = await this.pool.query(
+      `UPDATE market_commands SET status='CONFIRMED', transaction_signature=$3, error=NULL, updated_at=NOW()
+       WHERE match_id=$1 AND command_type=$2 AND status IN ('PENDING', 'AWAITING_SIGNATURE', 'SUBMITTED')
+       RETURNING id`,
+      [matchId, commandType, signature],
+    );
+    if (result.rowCount !== 1) throw new Error(`Expected exactly one pending ${commandType} command for ${matchId}`);
+    if (commandType === 'LOCK') {
+      await this.pool.query("UPDATE matches SET status='LIVE', started_at=COALESCE(started_at, NOW()), updated_at=NOW() WHERE id=$1 AND status='SCHEDULED'", [matchId]);
+    }
+  }
 }
 
 module.exports = { MatchRepository };

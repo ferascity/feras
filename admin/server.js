@@ -29,7 +29,9 @@ const MAX_CLAIM_WINDOW_SECONDS = 180 * 24 * 60 * 60;
 const IDL = require(path.join(ROOT, 'target/idl/feras_market.json'));
 const INITIALIZE_CONFIG = IDL.instructions.find((instruction) => instruction.name === 'initialize_config');
 const CREATE_MARKET = IDL.instructions.find((instruction) => instruction.name === 'create_market');
+const LOCK_MARKET = IDL.instructions.find((instruction) => instruction.name === 'lock_market');
 const marketDrafts = new Map();
+const marketLockDrafts = new Map();
 const distributionDrafts = new Map();
 
 function fail(message, status = 400) {
@@ -267,13 +269,86 @@ function assertExactMarketTransaction(transaction, config, draft) {
   if (!transaction.feePayer?.equals(config.platformAuthority) || transaction.instructions.length !== 1 || !instruction.programId.equals(config.programId) || !accountMetaMatches(instruction, expectedKeys) || !instruction.data.equals(marketData(matchHash, draft.lockTime))) throw fail('Rejected: transaction does not exactly match the reviewed market creation', 409);
 }
 
-function recordMarket(draft) {
+function marketRegistry() {
   const file = path.join(ROOT, 'config/devnet-markets.json');
   let registry = [];
   if (fs.existsSync(file)) registry = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (!Array.isArray(registry)) throw fail('The local market registry is malformed', 500);
+  return { file, registry };
+}
+
+function recordMarket(draft) {
+  const { file, registry } = marketRegistry();
   if (registry.some((entry) => entry.id === draft.matchId)) return;
-  registry.push({ id: draft.matchId, title: draft.title, category: draft.category, status: 'LIVE', marketAddress: draft.market, vaultAddress: draft.vault });
+  registry.push({ id: draft.matchId, title: draft.title, category: draft.category, status: 'OPEN', lockTime: draft.lockTime, marketAddress: draft.market, vaultAddress: draft.vault });
   fs.writeFileSync(file, `${JSON.stringify(registry, null, 2)}\n`);
+}
+
+function recordMarketStatus(matchId, status, signature) {
+  const { file, registry } = marketRegistry();
+  const entry = registry.find((market) => market.id === matchId);
+  if (!entry) throw fail('The locally reviewed market is missing from the registry', 409);
+  entry.status = status;
+  entry[status === 'LOCKED' ? 'lockSignature' : 'createSignature'] = signature;
+  fs.writeFileSync(file, `${JSON.stringify(registry, null, 2)}\n`);
+  return entry;
+}
+
+async function prepareMarketLock(config, body) {
+  const matchId = typeof body?.matchId === 'string' ? body.matchId.trim() : '';
+  if (!/^[a-z0-9][a-z0-9:_-]{2,95}$/i.test(matchId)) throw fail('A canonical market ID is required');
+  const { registry } = marketRegistry();
+  const entry = registry.find((market) => market.id === matchId);
+  if (!entry) throw fail('Create and confirm this market locally before preparing its lock transaction', 409);
+  if (entry.status === 'LOCKED') throw fail('This market is already recorded as locked', 409);
+  const lockTime = Number(entry.lockTime);
+  if (!Number.isSafeInteger(lockTime)) throw fail('This local market registry lacks a valid lock time', 409);
+
+  const rpc = connection(config);
+  const { configPda, market, vault } = marketAddresses(config, matchId);
+  if (entry.marketAddress !== market.toBase58() || entry.vaultAddress !== vault.toBase58()) {
+    throw fail('The registry market addresses do not match the canonical PDA derivation', 409);
+  }
+  const [slot, marketAccount] = await Promise.all([
+    rpc.getSlot('confirmed'),
+    rpc.getAccountInfo(market, 'confirmed'),
+  ]);
+  const chainTime = await rpc.getBlockTime(slot);
+  if (!marketAccount || !marketAccount.owner.equals(config.programId) || marketAccount.data.length < 40 || !marketAccount.data.subarray(8, 40).equals(configPda.toBuffer())) {
+    throw fail('The canonical market PDA is not a valid Feras market for this config', 409);
+  }
+  if (!chainTime || chainTime < lockTime) throw fail(`Market locking opens at ${new Date(lockTime * 1000).toISOString()}`, 409);
+
+  const latest = await rpc.getLatestBlockhash('confirmed');
+  const transaction = new Transaction();
+  transaction.feePayer = config.platformAuthority;
+  transaction.recentBlockhash = latest.blockhash;
+  transaction.lastValidBlockHeight = latest.lastValidBlockHeight;
+  transaction.add(new TransactionInstruction({
+    programId: config.programId,
+    keys: [
+      { pubkey: configPda, isSigner: false, isWritable: false },
+      { pubkey: market, isSigner: false, isWritable: true },
+      { pubkey: config.platformAuthority, isSigner: true, isWritable: false },
+    ],
+    data: Buffer.from(LOCK_MARKET.discriminator),
+  }));
+  const draftId = require('crypto').createHash('sha256').update(transaction.serializeMessage()).digest('hex');
+  marketLockDrafts.set(draftId, { matchId, market: market.toBase58(), vault: vault.toBase58(), lockTime, messageHash: draftId });
+  return { transaction: serializeTransaction(transaction), draftId, review: { cluster: 'devnet', ...marketLockDrafts.get(draftId), chainTime } };
+}
+
+function assertExactMarketLockTransaction(transaction, config, draft) {
+  const { configPda, market } = marketAddresses(config, draft.matchId);
+  const expectedKeys = [
+    { pubkey: configPda, isSigner: false, isWritable: false },
+    { pubkey: market, isSigner: false, isWritable: true },
+    { pubkey: config.platformAuthority, isSigner: true, isWritable: false },
+  ];
+  const instruction = transaction.instructions[0];
+  if (!transaction.feePayer?.equals(config.platformAuthority) || transaction.instructions.length !== 1 || !instruction.programId.equals(config.programId) || !accountMetaMatches(instruction, expectedKeys) || !instruction.data.equals(Buffer.from(LOCK_MARKET.discriminator))) {
+    throw fail('Rejected: transaction does not exactly match the reviewed market lock', 409);
+  }
 }
 
 function parseTestUsdc(value) {
@@ -427,6 +502,10 @@ async function submitTransaction(config, encoded, operation, draftId) {
     const draft = marketDrafts.get(draftId || '');
     if (!draft) throw fail('The reviewed market draft expired; prepare it again', 409);
     assertExactMarketTransaction(transaction, config, draft);
+  } else if (operation === 'market-lock') {
+    const draft = marketLockDrafts.get(draftId || '');
+    if (!draft) throw fail('The reviewed market-lock draft expired; prepare it again', 409);
+    assertExactMarketLockTransaction(transaction, config, draft);
   } else if (operation === 'distribution') {
     const draft = distributionDrafts.get(draftId || '');
     if (!draft || require('crypto').createHash('sha256').update(transaction.serializeMessage()).digest('hex') !== draft.messageHash) throw fail('Rejected: transaction differs from the reviewed distribution draft', 409);
@@ -443,7 +522,12 @@ async function submitTransaction(config, encoded, operation, draftId) {
   // signed browser payload therefore cannot reliably provide it back here.
   const confirmation = await rpc.confirmTransaction(signature, 'confirmed');
   if (confirmation.value.err) throw fail(`Devnet rejected the transaction: ${JSON.stringify(confirmation.value.err)}`, 409);
-  if (operation === 'market') recordMarket(marketDrafts.get(draftId));
+  if (operation === 'market') {
+    const draft = marketDrafts.get(draftId);
+    recordMarket(draft);
+    recordMarketStatus(draft.matchId, 'OPEN', signature);
+  }
+  if (operation === 'market-lock') recordMarketStatus(marketLockDrafts.get(draftId).matchId, 'LOCKED', signature);
   return { signature };
 }
 
@@ -499,6 +583,8 @@ const server = http.createServer(async (request, response) => {
     if (request.method === 'POST' && request.url === '/api/config/submit') return sendJson(response, 200, await submitTransaction(config, (await readJson(request)).transaction, 'config'));
     if (request.method === 'POST' && request.url === '/api/market/prepare') return sendJson(response, 200, await prepareMarket(config, await readJson(request)));
     if (request.method === 'POST' && request.url === '/api/market/submit') { const body = await readJson(request); return sendJson(response, 200, await submitTransaction(config, body.transaction, 'market', body.draftId)); }
+    if (request.method === 'POST' && request.url === '/api/market/lock/prepare') return sendJson(response, 200, await prepareMarketLock(config, await readJson(request)));
+    if (request.method === 'POST' && request.url === '/api/market/lock/submit') { const body = await readJson(request); return sendJson(response, 200, await submitTransaction(config, body.transaction, 'market-lock', body.draftId)); }
     if (request.method === 'POST' && request.url === '/api/distribution/prepare') return sendJson(response, 200, await prepareDistribution(config, await readJson(request)));
     if (request.method === 'POST' && request.url === '/api/distribution/submit') { const body = await readJson(request); return sendJson(response, 200, await submitTransaction(config, body.transaction, 'distribution', body.draftId)); }
     if (request.method === 'GET' && (request.url === '/' || request.url === '/index.html')) {
