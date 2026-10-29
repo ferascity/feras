@@ -10,14 +10,12 @@ if [ $# -eq 0 ]; then
   exit 1
 fi
 
-COMMAND="$*"
-
 PARAMS_JSON=$(python3 -c '
-import json, sys
-cmd = sys.argv[1]
+import json, shlex, sys
+cmd = shlex.join(sys.argv[1:])
 shell_cmd = f"cd /opt/feras && docker compose --env-file .env.aws -f docker-compose.yml -f docker-compose.aws.yml exec -T api {cmd}"
 print(json.dumps({"commands": [shell_cmd]}))
-' "$COMMAND")
+' "$@")
 
 CMD_ID=$(aws ssm send-command \
   --instance-ids "$INSTANCE_ID" \

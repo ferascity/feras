@@ -23,6 +23,8 @@ function serializeMatch(match, moves = []) {
     currentFen: match.current_fen, startedAt: match.started_at, evalScore: Number(match.current_eval_centipawns || 0) / 100,
     engineAnalysis: match.current_analysis || [],
     marketAddress: match.market_address, vaultAddress: match.vault_address,
+    lockTime: match.market_lock_time ? Math.floor(new Date(match.market_lock_time).getTime() / 1000) : null,
+    marketLockTime: match.market_lock_time ? new Date(match.market_lock_time).toISOString() : null,
     transcriptHash: match.transcript_hash,
     replay: {
       matchId: match.id, initialFen: match.initial_fen,
