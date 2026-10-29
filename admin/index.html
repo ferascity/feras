@@ -620,19 +620,24 @@
             <div class="form-grid">
               <div class="form-group">
                 <label class="control-label" for="match-id">Canonical Match ID</label>
-                <input id="match-id" value="feras-devnet-smoke-001" placeholder="e.g. feras-devnet-grandprix-001" />
+                <input id="match-id" value="gp-002" placeholder="e.g. gp-002" />
                 <span class="control-help">Unique 3-96 character slug matching the backend match</span>
+                <div class="preset-row" style="margin-top: 6px;">
+                  <span class="control-help" style="margin-right:6px">Scheduled:</span>
+                  <button type="button" class="preset-pill" data-scheduled-id="gp-002" data-scheduled-title="Grand Prix Round 2" data-scheduled-lock="2026-10-31T12:00">gp-002 (Grand Prix Round 2)</button>
+                </div>
               </div>
               <div class="form-group">
                 <label class="control-label" for="match-title">Match Title</label>
-                <input id="match-title" value="Feras Devnet Smoke Test" placeholder="e.g. Grand Prix Round 1" />
+                <input id="match-title" value="Grand Prix Round 2" placeholder="e.g. Grand Prix Round 2" />
                 <span class="control-help">Human-readable title displayed in the Arena</span>
               </div>
               <div class="form-group full">
                 <label class="control-label" for="market-lock">Lock Time (UTC / Local)</label>
-                <input id="market-lock" type="datetime-local" />
+                <input id="market-lock" type="datetime-local" value="2026-10-31T12:00" />
                 <div class="preset-row">
                   <span class="control-help" style="margin-right:6px">Quick presets:</span>
+                  <button type="button" class="preset-pill" data-lock-target="2026-10-31T12:00">Oct 31, 12:00 PM</button>
                   <button type="button" class="preset-pill" data-lock-preset="5">+5 Min</button>
                   <button type="button" class="preset-pill" data-lock-preset="15">+15 Min</button>
                   <button type="button" class="preset-pill" data-lock-preset="60">+1 Hour</button>
@@ -688,6 +693,7 @@
                 <span class="control-help">Only executable at or after the on-chain lock timestamp</span>
                 <div id="open-markets-row" class="preset-row" style="margin-top: 8px;">
                   <span class="control-help" style="margin-right:6px">Open Markets:</span>
+                  <button type="button" class="preset-pill" data-market-id="gp-002">gp-002 (Grand Prix Round 2)</button>
                   <button type="button" class="preset-pill" data-market-id="gp-001">gp-001 (Grand Prix Round 1)</button>
                 </div>
               </div>
@@ -971,6 +977,12 @@
           window.setDistAmount(Number(btn.dataset.distAmount));
         } else if (btn.dataset.marketId) {
           $('lock-match-id').value = btn.dataset.marketId;
+        } else if (btn.dataset.scheduledId) {
+          $('match-id').value = btn.dataset.scheduledId;
+          if (btn.dataset.scheduledTitle) $('match-title').value = btn.dataset.scheduledTitle;
+          if (btn.dataset.scheduledLock) $('market-lock').value = btn.dataset.scheduledLock;
+        } else if (btn.dataset.lockTarget) {
+          $('market-lock').value = btn.dataset.lockTarget;
         }
       });
 

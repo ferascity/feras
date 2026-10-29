@@ -143,8 +143,17 @@ async function buildPositionInstruction(body) {
   const mint = asPublicKey(required('FERAS_DEVNET_USDC_MINT'), 'FERAS_DEVNET_USDC_MINT');
   const owner = asPublicKey(body.owner, 'owner');
   const amount = parseAmount(body.amountBaseUnits);
-  const registry = readRegistry();
-  const match = matchForId(registry, body.matchId);
+  let match = null;
+  if (matchReadApi) {
+    match = await matchReadApi.get(body.matchId);
+  }
+  if (!match) {
+    const registry = readRegistry();
+    match = matchForId(registry, body.matchId);
+  }
+  if (!match || !match.marketAddress || !match.vaultAddress) {
+    throw new Error('Market entry is missing its on-chain market or vault address');
+  }
   const connection = new Connection(RPC_URL, 'confirmed');
   const [configPda] = PublicKey.findProgramAddressSync([Buffer.from('config')], programId);
   const { market } = await assertMarketOnChain({ connection, programId, configPda, match });
@@ -199,6 +208,14 @@ async function loadOwnerPositions(ownerAddress, registry) {
   const owner = asPublicKey(ownerAddress, 'owner');
   const connection = new Connection(RPC_URL, 'confirmed');
   const registryByMarket = new Map(registry.map((match) => [match.marketAddress, match]));
+  if (matchReadApi) {
+    try {
+      const dbMatches = await matchReadApi.list();
+      for (const m of dbMatches) {
+        if (m.marketAddress) registryByMarket.set(m.marketAddress, m);
+      }
+    } catch {}
+  }
   const accounts = await connection.getProgramAccounts(programId, {
     commitment: 'confirmed',
     filters: [{ memcmp: { offset: 40, bytes: owner.toBase58() } }],
