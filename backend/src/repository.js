@@ -45,17 +45,18 @@ class MatchRepository {
       if (!match) throw new Error('Match not found');
       if (match.current_ply !== expectedPly) throw new Error('Stale worker lease: match ply changed');
       const sequence = expectedPly + 2;
+      const analysisJson = JSON.stringify(move.analysis || []);
       await client.query(
         `INSERT INTO match_moves (match_id, ply, uci, san, fen, pgn, color, piece, captured, promotion, is_check, is_checkmate, time_spent_ms, white_clock_ms, black_clock_ms, eval_centipawns, analysis)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
-        [matchId, move.ply, move.uci, move.san, move.fen, move.pgn, move.color, move.piece, move.captured, move.promotion, move.isCheck, move.isCheckmate, move.timeSpentMs, move.whiteClockMs, move.blackClockMs, move.evalCentipawns, move.analysis],
+        [matchId, move.ply, move.uci, move.san, move.fen, move.pgn, move.color, move.piece, move.captured, move.promotion, move.isCheck, move.isCheckmate, move.timeSpentMs, move.whiteClockMs, move.blackClockMs, move.evalCentipawns, analysisJson],
       );
       await this._appendEvent(client, matchId, sequence, 'MOVE', event, match.transcript_hash || GENESIS_HASH, eventHash);
       await client.query(
         `UPDATE matches SET current_ply=$2, current_fen=$3, pgn=$4, white_clock_ms=$5, black_clock_ms=$6, transcript_hash=$7,
           current_eval_centipawns=$8, current_analysis=$9, status=CASE WHEN $10 THEN 'COMPLETED' ELSE 'LIVE' END, result=$11, termination_reason=$12,
           completed_at=CASE WHEN $10 THEN NOW() ELSE completed_at END, runner_lease_expires_at=NULL, updated_at=NOW() WHERE id=$1`,
-        [matchId, move.ply, move.fen, move.pgn, move.whiteClockMs, move.blackClockMs, eventHash, move.evalCentipawns, move.analysis, complete, result, terminationReason],
+        [matchId, move.ply, move.fen, move.pgn, move.whiteClockMs, move.blackClockMs, eventHash, move.evalCentipawns, analysisJson, complete, result, terminationReason],
       );
       if (complete) await this.enqueueMarketCommand(client, matchId, 'SETTLE', `market:settle:${matchId}`, { matchId, result, transcriptHash: eventHash });
       await client.query('COMMIT');

@@ -17,4 +17,5 @@ android/app/*.jks
 release/
 android/.gradle/
 android/app/build/
-*.pem
+docs/
+scripts/x

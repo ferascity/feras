@@ -633,10 +633,10 @@
                 <input id="market-lock" type="datetime-local" />
                 <div class="preset-row">
                   <span class="control-help" style="margin-right:6px">Quick presets:</span>
-                  <button type="button" class="preset-pill" onclick="setLockPreset(5)">+5 Min</button>
-                  <button type="button" class="preset-pill" onclick="setLockPreset(15)">+15 Min</button>
-                  <button type="button" class="preset-pill" onclick="setLockPreset(60)">+1 Hour</button>
-                  <button type="button" class="preset-pill" onclick="setLockPreset(1440)">+24 Hours</button>
+                  <button type="button" class="preset-pill" data-lock-preset="5">+5 Min</button>
+                  <button type="button" class="preset-pill" data-lock-preset="15">+15 Min</button>
+                  <button type="button" class="preset-pill" data-lock-preset="60">+1 Hour</button>
+                  <button type="button" class="preset-pill" data-lock-preset="1440">+24 Hours</button>
                 </div>
               </div>
             </div>
@@ -684,8 +684,12 @@
             <div class="form-grid">
               <div class="form-group full">
                 <label class="control-label" for="lock-match-id">Canonical Market ID</label>
-                <input id="lock-match-id" value="feras-devnet-smoke-001" placeholder="Must match the created market ID" />
+                <input id="lock-match-id" value="gp-001" placeholder="Must match the created market ID" />
                 <span class="control-help">Only executable at or after the on-chain lock timestamp</span>
+                <div id="open-markets-row" class="preset-row" style="margin-top: 8px;">
+                  <span class="control-help" style="margin-right:6px">Open Markets:</span>
+                  <button type="button" class="preset-pill" data-market-id="gp-001">gp-001 (Grand Prix Round 1)</button>
+                </div>
               </div>
             </div>
 
@@ -741,11 +745,11 @@
                 <input id="distribution-amount" value="100" inputmode="decimal" />
                 <div class="preset-row">
                   <span class="control-help" style="margin-right:6px">Presets:</span>
-                  <button type="button" class="preset-pill" onclick="setDistAmount(25)">25 USDC</button>
-                  <button type="button" class="preset-pill" onclick="setDistAmount(50)">50 USDC</button>
-                  <button type="button" class="preset-pill" onclick="setDistAmount(100)">100 USDC</button>
-                  <button type="button" class="preset-pill" onclick="setDistAmount(250)">250 USDC</button>
-                  <button type="button" class="preset-pill" onclick="setDistAmount(500)">500 USDC</button>
+                  <button type="button" class="preset-pill" data-dist-amount="25">25 USDC</button>
+                  <button type="button" class="preset-pill" data-dist-amount="50">50 USDC</button>
+                  <button type="button" class="preset-pill" data-dist-amount="100">100 USDC</button>
+                  <button type="button" class="preset-pill" data-dist-amount="250">250 USDC</button>
+                  <button type="button" class="preset-pill" data-dist-amount="500">500 USDC</button>
                 </div>
               </div>
             </div>
@@ -842,6 +846,7 @@
         msgEl.textContent = value;
         msgEl.className = error ? 'error' : '';
         bannerEl.className = error ? 'system-banner error' : 'system-banner success';
+        bannerEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
 
       function short(value) {
@@ -927,6 +932,21 @@
           $('config-sign').disabled = true;
         }
 
+        try {
+          const markets = await request('/api/markets');
+          const openMarkets = (markets || []).filter(m => m.status === 'OPEN');
+          if (openMarkets.length > 0) {
+            $('lock-match-id').value = openMarkets[0].id;
+            const container = $('open-markets-row');
+            if (container) {
+              container.innerHTML = '<span class="control-help" style="margin-right:6px">Open Markets:</span>' +
+                openMarkets.map(m => `<button type="button" class="preset-pill" data-market-id="${m.id}">${m.id} (${m.title || 'Market'})</button>`).join(' ');
+            }
+          }
+        } catch (err) {
+          console.warn('Could not load market registry', err);
+        }
+
         message('System ready. Solana Devnet connection verified.');
       }
 
@@ -940,6 +960,19 @@
       window.setDistAmount = (amount) => {
         $('distribution-amount').value = amount;
       };
+
+      // Delegated Preset Button Clicks (100% CSP Compliant)
+      document.addEventListener('click', (event) => {
+        const btn = event.target.closest('button');
+        if (!btn) return;
+        if (btn.dataset.lockPreset) {
+          window.setLockPreset(Number(btn.dataset.lockPreset));
+        } else if (btn.dataset.distAmount) {
+          window.setDistAmount(Number(btn.dataset.distAmount));
+        } else if (btn.dataset.marketId) {
+          $('lock-match-id').value = btn.dataset.marketId;
+        }
+      });
 
       // Segmented Navigation Filter Logic
       document.querySelectorAll('.segment-btn').forEach((btn) => {
@@ -1042,7 +1075,13 @@
             'Confirmation CLI': `npm run confirm:market -- --id ${draft.matchId} --market ${result.review.market} --vault ${result.review.vault} --signature ${result.signature} --command LOCK`
           });
           $('lock-cli-preview').textContent = `npm run confirm:market -- --id ${draft.matchId} --market ${result.review.market} --vault ${result.review.vault} --signature ${result.signature} --command LOCK`;
-        } catch (error) { message(error.message, true); }
+        } catch (error) {
+          message(error.message, true);
+          render($('lock-review'), {
+            'Lock Failed': error.message,
+            'Tip': 'Make sure you selected an active open market (e.g. gp-001) whose lock time has arrived.'
+          });
+        }
       };
 
       $('distribution-connect').onclick = async () => {

@@ -6,6 +6,7 @@
  */
 const fs = require('fs');
 const http = require('http');
+const https = require('https');
 const path = require('path');
 const { randomBytes } = require('crypto');
 const { ed25519 } = require('@noble/curves/ed25519');
@@ -25,6 +26,7 @@ const HOST = '127.0.0.1';
 const PORT = Number(process.env.FERAS_ADMIN_PORT || 8787);
 const SET_AUTHORITY_CHECKED = Buffer.from([7, 0, 0, 0]);
 const BPF_LOADER_UPGRADEABLE_PROGRAM_ID = new PublicKey('BPFLoaderUpgradeab1e11111111111111111111111');
+const COMPUTE_BUDGET_PROGRAM_ID = new PublicKey('ComputeBudget111111111111111111111111111111');
 const MAX_CLAIM_WINDOW_SECONDS = 180 * 24 * 60 * 60;
 const IDL = require(path.join(ROOT, 'target/idl/feras_market.json'));
 const INITIALIZE_CONFIG = IDL.instructions.find((instruction) => instruction.name === 'initialize_config');
@@ -81,8 +83,32 @@ function localConfig() {
   };
 }
 
+function robustFetch(url, options = {}) {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const transport = parsed.protocol === 'https:' ? https : http;
+    const req = transport.request(url, options, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => {
+        const body = Buffer.concat(chunks).toString('utf8');
+        resolve({
+          ok: res.statusCode >= 200 && res.statusCode < 300,
+          status: res.statusCode,
+          statusText: res.statusMessage,
+          text: async () => body,
+          json: async () => JSON.parse(body),
+        });
+      });
+    });
+    req.on('error', reject);
+    if (options.body) req.write(options.body);
+    req.end();
+  });
+}
+
 function connection(config) {
-  return new Connection(config.rpcUrl, 'confirmed');
+  return new Connection(config.rpcUrl, { commitment: 'confirmed', fetch: robustFetch });
 }
 
 function deriveAddresses(config) {
@@ -255,18 +281,22 @@ async function prepareMarket(config, body) {
 
 function assertExactMarketTransaction(transaction, config, draft) {
   const { configPda, matchHash, market, vault } = marketAddresses(config, draft.matchId);
-  const expectedKeys = [
-    { pubkey: configPda, isSigner: false, isWritable: true },
-    { pubkey: market, isSigner: false, isWritable: true },
-    { pubkey: vault, isSigner: false, isWritable: true },
-    { pubkey: config.acceptedMint, isSigner: false, isWritable: false },
-    { pubkey: config.platformAuthority, isSigner: true, isWritable: true },
-    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-    { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-  ];
-  const instruction = transaction.instructions[0];
-  if (!transaction.feePayer?.equals(config.platformAuthority) || transaction.instructions.length !== 1 || !instruction.programId.equals(config.programId) || !accountMetaMatches(instruction, expectedKeys) || !instruction.data.equals(marketData(matchHash, draft.lockTime))) throw fail('Rejected: transaction does not exactly match the reviewed market creation', 409);
+  const appInstructions = transaction.instructions.filter((ix) => !ix.programId.equals(COMPUTE_BUDGET_PROGRAM_ID));
+  if (appInstructions.length !== 1) throw fail('Rejected: transaction must contain exactly one Feras market instruction', 409);
+  const instruction = appInstructions[0];
+  if (!transaction.feePayer?.equals(config.platformAuthority)) {
+    throw fail('Rejected: fee payer must be the platform authority', 409);
+  }
+  if (!instruction.programId.equals(config.programId)) {
+    throw fail('Rejected: instruction program ID mismatch', 409);
+  }
+  if (!instruction.data.equals(marketData(matchHash, draft.lockTime))) {
+    throw fail('Rejected: instruction data mismatch', 409);
+  }
+  const expectedPubkeys = [configPda, market, vault, config.acceptedMint, config.platformAuthority, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, SystemProgram.programId];
+  if (instruction.keys.length !== expectedPubkeys.length || !instruction.keys.every((k, i) => k.pubkey.equals(expectedPubkeys[i]))) {
+    throw fail('Rejected: transaction keys do not match canonical market creation accounts', 409);
+  }
 }
 
 function marketRegistry() {
@@ -340,14 +370,23 @@ async function prepareMarketLock(config, body) {
 
 function assertExactMarketLockTransaction(transaction, config, draft) {
   const { configPda, market } = marketAddresses(config, draft.matchId);
-  const expectedKeys = [
-    { pubkey: configPda, isSigner: false, isWritable: false },
-    { pubkey: market, isSigner: false, isWritable: true },
-    { pubkey: config.platformAuthority, isSigner: true, isWritable: false },
-  ];
-  const instruction = transaction.instructions[0];
-  if (!transaction.feePayer?.equals(config.platformAuthority) || transaction.instructions.length !== 1 || !instruction.programId.equals(config.programId) || !accountMetaMatches(instruction, expectedKeys) || !instruction.data.equals(Buffer.from(LOCK_MARKET.discriminator))) {
-    throw fail('Rejected: transaction does not exactly match the reviewed market lock', 409);
+  const appInstructions = transaction.instructions.filter((ix) => !ix.programId.equals(COMPUTE_BUDGET_PROGRAM_ID));
+  if (appInstructions.length !== 1) throw fail('Rejected: transaction must contain exactly one Feras market lock instruction', 409);
+  const instruction = appInstructions[0];
+  if (!transaction.feePayer?.equals(config.platformAuthority)) {
+    throw fail('Rejected: fee payer must be the platform authority', 409);
+  }
+  if (!instruction.programId.equals(config.programId)) {
+    throw fail('Rejected: instruction program ID mismatch', 409);
+  }
+  if (!instruction.data.equals(Buffer.from(LOCK_MARKET.discriminator))) {
+    throw fail('Rejected: instruction discriminator mismatch', 409);
+  }
+  if (instruction.keys.length !== 3 ||
+      !instruction.keys[0].pubkey.equals(configPda) ||
+      !instruction.keys[1].pubkey.equals(market) || !instruction.keys[1].isWritable ||
+      !instruction.keys[2].pubkey.equals(config.platformAuthority) || !instruction.keys[2].isSigner) {
+    throw fail('Rejected: transaction keys do not match canonical market lock accounts', 409);
   }
 }
 
@@ -577,6 +616,7 @@ const server = http.createServer(async (request, response) => {
   try {
     const config = localConfig();
     if (request.method === 'GET' && request.url === '/api/status') return sendJson(response, 200, await status(config));
+    if (request.method === 'GET' && request.url === '/api/markets') return sendJson(response, 200, marketRegistry().registry);
     if (request.method === 'POST' && request.url === '/api/upgrade/prepare') return sendJson(response, 200, await prepareUpgrade(config));
     if (request.method === 'POST' && request.url === '/api/upgrade/submit') return sendJson(response, 200, await submitTransaction(config, (await readJson(request)).transaction, 'upgrade'));
     if (request.method === 'POST' && request.url === '/api/config/prepare') return sendJson(response, 200, await prepareInitialize(config, await readJson(request)));
@@ -595,6 +635,7 @@ const server = http.createServer(async (request, response) => {
     }
     sendJson(response, 404, { error: 'Not found' });
   } catch (error) {
+    process.stderr.write(`[Admin API Error] ${error.status || 500}: ${error.stack || error.message}\n`);
     sendJson(response, error.status || 500, { error: error.message || 'Unexpected server error' });
   }
 });
