@@ -23,8 +23,23 @@ async function main() {
   const stop = async () => { stopping = true; await repository.close(); };
   process.once('SIGINT', stop); process.once('SIGTERM', stop);
 
+  let lastAutoPairCheck = 0;
   while (!stopping) {
     try {
+      if (process.env.FERAS_AUTO_PAIR_ENABLED === 'true' && Date.now() - lastAutoPairCheck > 30_000) {
+        lastAutoPairCheck = Date.now();
+        const live = await repository.listMatches('LIVE');
+        const scheduled = await repository.listMatches('SCHEDULED');
+        if (live.length === 0 && scheduled.length === 0) {
+          const { autoPairMatch } = require('./matchmaker');
+          const paired = await autoPairMatch({
+            databaseUrl: process.env.FERAS_DATABASE_URL,
+            countdownMinutes: Number(process.env.FERAS_AUTO_PAIR_MINUTES || 15),
+          });
+          process.stdout.write(`[AutoPair] Automatically staged ${paired.id} (${paired.title}) with lock in ${paired.lockTime}s\n`);
+        }
+      }
+
       await repository.enqueueDueLocks();
       const match = await repository.claimNextRunnableMatch();
       if (match) await runner.runOnePly(match);
