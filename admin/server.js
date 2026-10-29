@@ -617,6 +617,21 @@ const server = http.createServer(async (request, response) => {
     const config = localConfig();
     if (request.method === 'GET' && request.url === '/api/status') return sendJson(response, 200, await status(config));
     if (request.method === 'GET' && request.url === '/api/markets') return sendJson(response, 200, marketRegistry().registry);
+    if (request.method === 'GET' && request.url === '/api/matchmaker/preview') {
+      const apiUrl = process.env.FERAS_MARKET_API_URL || 'https://dqrwnhn2nif0u.cloudfront.net';
+      const res = await robustFetch(`${apiUrl}/v1/matchmaker/preview`);
+      return sendJson(response, res.status, await res.json());
+    }
+    if (request.method === 'POST' && request.url === '/api/matchmaker/pair') {
+      const body = await readJson(request);
+      const apiUrl = process.env.FERAS_MARKET_API_URL || 'https://dqrwnhn2nif0u.cloudfront.net';
+      const res = await robustFetch(`${apiUrl}/v1/matchmaker/pair`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      return sendJson(response, res.status, await res.json());
+    }
     if (request.method === 'POST' && request.url === '/api/upgrade/prepare') return sendJson(response, 200, await prepareUpgrade(config));
     if (request.method === 'POST' && request.url === '/api/upgrade/submit') return sendJson(response, 200, await submitTransaction(config, (await readJson(request)).transaction, 'upgrade'));
     if (request.method === 'POST' && request.url === '/api/config/prepare') return sendJson(response, 200, await prepareInitialize(config, await readJson(request)));

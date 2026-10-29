@@ -583,6 +583,7 @@
       <!-- Segmented Navigation Filter -->
       <nav class="segmented-nav" aria-label="Section Filter">
         <button type="button" class="segment-btn active" data-filter="all">All Operations</button>
+        <button type="button" class="segment-btn" data-filter="auto-pair">Auto Matchmaker</button>
         <button type="button" class="segment-btn" data-filter="market-create">Create Market</button>
         <button type="button" class="segment-btn" data-filter="market-lock">Lock Market</button>
         <button type="button" class="segment-btn" data-filter="faucet">USDC Faucet</button>
@@ -600,6 +601,64 @@
         <div class="card">
           <div class="card-body">
             <div id="status" class="grid"></div>
+          </div>
+        </div>
+      <!-- Section: Auto-Pair Matchmaker -->
+      <section class="section-group" data-section="all,auto-pair">
+        <div class="section-header-row">
+          <div>
+            <div class="section-eyebrow">Autonomous Engine • Matchmaking</div>
+            <h2 class="section-title">Auto-Pair Matchmaker</h2>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <p class="section-desc">
+              Automatically pair engine personas (Atlas vs. Bishop), rotate White / Black colors, and configure betting lock intervals for the mobile arena.
+            </p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="control-label" for="pair-next-id">Target Match ID</label>
+                <input id="pair-next-id" value="gp-003" placeholder="e.g. gp-003" />
+                <span class="control-help">Automatically increments to the next round</span>
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="pair-next-title">Match Title</label>
+                <input id="pair-next-title" value="Grand Prix Round 3" placeholder="e.g. Grand Prix Round 3" />
+                <span class="control-help">Displayed in the mobile app arena</span>
+              </div>
+              <div class="form-group">
+                <label class="control-label">White Player (First Move)</label>
+                <div class="field" style="padding:10px 14px; background:rgba(255,255,255,0.04); border-radius:10px;">
+                  <span id="pair-white-name" style="font-weight:600; color:var(--system-blue);">Atlas (Stockfish 16)</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="control-label">Black Player</label>
+                <div class="field" style="padding:10px 14px; background:rgba(255,255,255,0.04); border-radius:10px;">
+                  <span id="pair-black-name" style="font-weight:600; color:var(--system-purple);">Bishop (Stockfish 14)</span>
+                </div>
+              </div>
+              <div class="form-group full">
+                <label class="control-label">Betting Window (Lock Countdown)</label>
+                <div class="preset-row">
+                  <button type="button" class="preset-pill active" data-pair-countdown="15">15 Minutes</button>
+                  <button type="button" class="preset-pill" data-pair-countdown="5">5 Minutes</button>
+                  <button type="button" class="preset-pill" data-pair-countdown="30">30 Minutes</button>
+                  <button type="button" class="preset-pill" data-pair-countdown="60">1 Hour</button>
+                  <button type="button" class="preset-pill" data-pair-countdown="1440">24 Hours</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Auto-Pair Result Output -->
+            <div id="pair-result-box" class="grid" style="margin-top: 14px; display: none;"></div>
+          </div>
+          <div class="card-footer">
+            <div class="actions">
+              <button id="btn-swap-colors" type="button" class="secondary">Swap Player Colors</button>
+              <button id="btn-auto-pair" type="button">Auto-Pair & Stage Match</button>
+            </div>
           </div>
         </div>
       </section>
@@ -939,6 +998,18 @@
         }
 
         try {
+          const preview = await request('/api/matchmaker/preview');
+          if (preview && preview.suggestedId) {
+            $('pair-next-id').value = preview.suggestedId;
+            $('pair-next-title').value = preview.suggestedTitle;
+            $('pair-white-name').textContent = preview.suggestedWhite + ' (Stockfish)';
+            $('pair-black-name').textContent = preview.suggestedBlack + ' (Stockfish)';
+          }
+        } catch (e) {
+          console.warn('Matchmaker preview fetch error', e);
+        }
+
+        try {
           const markets = await request('/api/markets');
           const openMarkets = (markets || []).filter(m => m.status === 'OPEN');
           if (openMarkets.length > 0) {
@@ -983,6 +1054,10 @@
           if (btn.dataset.scheduledLock) $('market-lock').value = btn.dataset.scheduledLock;
         } else if (btn.dataset.lockTarget) {
           $('market-lock').value = btn.dataset.lockTarget;
+        } else if (btn.dataset.pairCountdown) {
+          document.querySelectorAll('[data-pair-countdown]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          window.selectedPairCountdown = Number(btn.dataset.pairCountdown);
         }
       });
 
@@ -1002,6 +1077,59 @@
           });
         });
       });
+
+      // Matchmaker Actions
+      $('btn-swap-colors').onclick = () => {
+        const white = $('pair-white-name').textContent;
+        const black = $('pair-black-name').textContent;
+        $('pair-white-name').textContent = black;
+        $('pair-black-name').textContent = white;
+      };
+
+      $('btn-auto-pair').onclick = async () => {
+        try {
+          const id = $('pair-next-id').value.trim();
+          const title = $('pair-next-title').value.trim();
+          const countdown = window.selectedPairCountdown || 15;
+          const whiteName = $('pair-white-name').textContent;
+          const whiteId = whiteName.includes('Bishop') ? 'bishop-stockfish-14' : 'atlas-stockfish-16';
+          const blackId = whiteName.includes('Bishop') ? 'atlas-stockfish-16' : 'bishop-stockfish-14';
+
+          if (!confirm(`Auto-pair ${id} (${title}) with ${countdown} min lock countdown?`)) return;
+          message(`Pairing ${id} in backend...`);
+          const result = await request('/api/matchmaker/pair', {
+            matchId: id,
+            title,
+            countdownMinutes: countdown,
+            whiteAgentId: whiteId,
+            blackAgentId: blackId,
+          });
+
+          message(`Match ${result.id} successfully paired and staged in backend!`, false);
+          render($('pair-result-box'), {
+            'Status': 'SCHEDULED & STAGED',
+            'Match ID': result.id,
+            'Title': result.title,
+            'White Player': result.whiteAgent,
+            'Black Player': result.blackAgent,
+            'Lock Time': new Date(result.lockTime * 1000).toLocaleString(),
+            'Next Action': 'Review and create the on-chain market below to open predictions',
+          });
+          $('pair-result-box').style.display = 'grid';
+
+          // Pre-populate Create Devnet Market form
+          $('match-id').value = result.id;
+          $('match-title').value = result.title;
+          const date = new Date(result.lockTime * 1000);
+          const pad = (n) => String(n).padStart(2, '0');
+          $('market-lock').value = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+
+          // Refresh preview for next round
+          await load();
+        } catch (error) {
+          message(`Auto-pair failed: ${error.message}`, true);
+        }
+      };
 
       // Actions
       $('upgrade-connect').onclick = async () => {

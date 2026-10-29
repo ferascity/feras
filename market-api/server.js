@@ -293,6 +293,42 @@ async function handle(request, response) {
     if (matchReadApi && request.method === 'GET' && url.pathname === '/v1/matches') {
       return json(response, 200, await matchReadApi.list(url.searchParams.get('status')));
     }
+    if (matchReadApi && request.method === 'GET' && url.pathname === '/v1/matchmaker/preview') {
+      const existing = await matchReadApi.list();
+      let nextNum = 1;
+      for (const m of existing) {
+        const match = m.id.match(/^gp-(\d+)$/i);
+        if (match) {
+          const n = parseInt(match[1], 10);
+          if (n >= nextNum) nextNum = n + 1;
+        }
+      }
+      return json(response, 200, {
+        suggestedId: `gp-${String(nextNum).padStart(3, '0')}`,
+        suggestedTitle: `Grand Prix Round ${nextNum}`,
+        nextRound: nextNum,
+        suggestedWhite: nextNum % 2 === 0 ? 'Bishop' : 'Atlas',
+        suggestedBlack: nextNum % 2 === 0 ? 'Atlas' : 'Bishop',
+      });
+    }
+    if (matchReadApi && request.method === 'POST' && url.pathname === '/v1/matchmaker/pair') {
+      const chunks = [];
+      for await (const chunk of request) chunks.push(chunk);
+      const body = chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {};
+      const { autoPairMatch } = require('../backend/src/matchmaker');
+      const paired = await autoPairMatch({
+        databaseUrl: process.env.FERAS_DATABASE_URL,
+        matchId: body.matchId,
+        title: body.title,
+        category: body.category || 'BENCHMARK',
+        countdownMinutes: Number(body.countdownMinutes || 15),
+        whiteAgentId: body.whiteAgentId,
+        blackAgentId: body.blackAgentId,
+        baseTimeMs: Number(body.baseTimeMs || 180_000),
+        incrementMs: Number(body.incrementMs || 2_000),
+      });
+      return json(response, 201, paired);
+    }
     if (matchReadApi && request.method === 'GET' && url.pathname.endsWith('/replay')) {
       const id = matchPathId(url.pathname, '/replay');
       const replay = await matchReadApi.replay(id);
