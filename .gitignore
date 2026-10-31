@@ -19,3 +19,5 @@ android/.gradle/
 android/app/build/
 docs/
 scripts/x
+landing-page/
+.vscode/

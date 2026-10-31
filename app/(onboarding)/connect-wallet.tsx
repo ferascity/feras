@@ -17,13 +17,50 @@ import { AppleColors } from '@/theme/colors';
 import { Typography } from '@/theme/typography';
 import { Radii, Spacing } from '@/theme/spacing';
 import { isMobileWalletRuntime } from '@/services/wallet';
+import { WalletName } from '@/services/wallet/IWalletService';
 
-const WALLET_PROVIDERS = [
+interface ProviderOption {
+  id: WalletName;
+  name: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  badge?: string;
+  desc: string;
+  recommended?: boolean;
+}
+
+const WALLET_PROVIDERS: ProviderOption[] = [
   {
-    name: 'MWA' as const,
-    icon: 'phone-portrait' as const,
+    id: 'Google',
+    name: 'Continue with Google',
+    icon: 'logo-google',
+    color: '#EA4335',
+    badge: 'Fastest',
+    desc: 'Instant self-custodial Solana wallet. No seed phrase required.',
+    recommended: true,
+  },
+  {
+    id: 'Apple',
+    name: 'Continue with Apple',
+    icon: 'logo-apple',
+    color: AppleColors.labelPrimary,
+    desc: 'Sign in securely with Apple ID. Native on iOS.',
+  },
+  {
+    id: 'Email',
+    name: 'Continue with Email',
+    icon: 'mail',
     color: AppleColors.systemBlue,
-    desc: 'Solana Mobile Wallet Adapter (Android Native)',
+    desc: 'Passwordless one-time verification code to your inbox.',
+  },
+  {
+    id: 'MWA',
+    name: 'External Wallet (MWA)',
+    icon: 'phone-portrait',
+    color: AppleColors.systemPurple,
+    desc: isMobileWalletRuntime
+      ? 'Connect Phantom or Solflare via Mobile Wallet Adapter'
+      : 'Requires Android development build (Phantom / Solflare)',
   },
 ];
 
@@ -32,15 +69,25 @@ export default function ConnectWalletModal() {
   const connectWallet = useFerasStore((state) => state.connectWallet);
   const [connectingProvider, setConnectingProvider] = useState<string | null>(null);
 
-  const handleConnect = async (provider: typeof WALLET_PROVIDERS[number]) => {
+  const handleConnect = async (provider: ProviderOption) => {
+    if (provider.id === 'MWA' && !isMobileWalletRuntime) {
+      useFerasStore.getState().showToast({
+        type: 'info',
+        title: 'Android Build Required',
+        message: 'External Mobile Wallet Adapter requires an Android development build. Try Google or Apple sign-in instead.',
+      });
+      return;
+    }
+
     if (Platform.OS !== 'web') {
       try {
         Haptics.selectionAsync();
       } catch {}
     }
-    setConnectingProvider(provider.name);
+
+    setConnectingProvider(provider.id);
     try {
-      await connectWallet(provider.name);
+      await connectWallet(provider.id);
       if (Platform.OS !== 'web') {
         try {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -51,8 +98,8 @@ export default function ConnectWalletModal() {
       setConnectingProvider(null);
       useFerasStore.getState().showToast({
         type: 'error',
-        title: 'Wallet Connection Failed',
-        message: error instanceof Error ? error.message : 'Unable to connect this wallet.',
+        title: 'Sign In Failed',
+        message: error instanceof Error ? error.message : 'Unable to complete sign in.',
       });
     }
   };
@@ -61,27 +108,28 @@ export default function ConnectWalletModal() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Connect Solana Wallet</Text>
+          <Text style={styles.title}>Sign In to Feras</Text>
           <Text style={styles.subtext}>
-            {isMobileWalletRuntime
-              ? 'Connect a Mobile Wallet Adapter compatible wallet. Feras reads live Devnet balances; every future transaction requires your wallet approval.'
-              : 'Install the Android Feras development build to connect a real Devnet wallet. Expo Go cannot use Mobile Wallet Adapter.'}
+            Connect your self-custodial Solana wallet in one tap. Your wallet is created instantly and secured with multi-party computation.
           </Text>
         </View>
 
         <View style={styles.walletList}>
           {WALLET_PROVIDERS.map((provider) => {
-            const isConnecting = connectingProvider === provider.name;
+            const isConnecting = connectingProvider === provider.id;
             return (
               <Card
-                key={provider.name}
-                style={styles.walletItem}
-                onPress={isMobileWalletRuntime ? () => handleConnect(provider) : undefined}
+                key={provider.id}
+                style={StyleSheet.flatten([
+                  styles.walletItem,
+                  provider.recommended && styles.recommendedItem,
+                ])}
+                onPress={() => handleConnect(provider)}
               >
                 <View
                   style={[
                     styles.walletIconCircle,
-                    { backgroundColor: `${provider.color}25` },
+                    { backgroundColor: `${provider.color}18` },
                   ]}
                 >
                   <Ionicons
@@ -92,7 +140,14 @@ export default function ConnectWalletModal() {
                 </View>
 
                 <View style={styles.walletInfo}>
-                  <Text style={styles.walletName}>{provider.name}</Text>
+                  <View style={styles.nameRow}>
+                    <Text style={styles.walletName}>{provider.name}</Text>
+                    {provider.badge && (
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>{provider.badge}</Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={styles.walletDesc}>{provider.desc}</Text>
                 </View>
 
@@ -111,10 +166,14 @@ export default function ConnectWalletModal() {
         </View>
 
         <View style={styles.footer}>
+          <View style={styles.guaranteeRow}>
+            <Ionicons name="shield-checkmark" size={14} color={AppleColors.systemGreen} />
+            <Text style={styles.guaranteeText}>
+              Non-custodial · Solana Devnet · Multi-Party Computation
+            </Text>
+          </View>
           <Text style={styles.footerNote}>
-            {isMobileWalletRuntime
-              ? 'DEVNET · Live public balances · Wallet signatures stay in your wallet'
-              : 'ANDROID DEVELOPMENT BUILD REQUIRED · No simulated wallet is available'}
+            Feras never has access to your private keys or personal credentials.
           </Text>
         </View>
       </View>
@@ -144,7 +203,7 @@ const styles = StyleSheet.create({
   subtext: {
     ...Typography.subhead,
     color: AppleColors.labelSecondary,
-    marginTop: 4,
+    marginTop: 6,
     lineHeight: 20,
   },
   walletList: {
@@ -155,6 +214,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.sm,
     padding: Spacing.md,
+    borderRadius: Radii.lg,
+  },
+  recommendedItem: {
+    borderColor: 'rgba(234, 67, 53, 0.3)',
+    borderWidth: 1,
   },
   walletIconCircle: {
     width: 44,
@@ -168,9 +232,26 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: Spacing.sm,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   walletName: {
     ...Typography.headline,
     color: AppleColors.labelPrimary,
+  },
+  badge: {
+    backgroundColor: 'rgba(234, 67, 53, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: Radii.pill,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#EA4335',
+    textTransform: 'uppercase',
   },
   walletDesc: {
     ...Typography.caption1,
@@ -181,9 +262,20 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: 'center',
     paddingVertical: Spacing.md,
+    gap: 6,
+  },
+  guaranteeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  guaranteeText: {
+    ...Typography.caption1,
+    color: AppleColors.systemGreen,
+    fontWeight: '600',
   },
   footerNote: {
-    ...Typography.caption1,
+    ...Typography.caption2,
     color: AppleColors.labelTertiary,
     textAlign: 'center',
   },

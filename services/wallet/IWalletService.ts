@@ -1,7 +1,7 @@
 import type { Instruction } from '@solana/kit';
 
-export type WalletName = 'MWA';
-export type WalletMode = 'unavailable' | 'mobile-wallet-adapter';
+export type WalletName = 'MWA' | 'Privy' | 'Google' | 'Apple' | 'Email';
+export type WalletMode = 'unavailable' | 'mobile-wallet-adapter' | 'privy-embedded';
 import type { SolanaCluster } from '@/services/solana/config';
 
 export type { SolanaCluster } from '@/services/solana/config';

@@ -10,6 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useFerasStore, BoardThemeName } from '@/store/useFerasStore';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -33,6 +34,7 @@ const SPEED_OPTIONS = [
 ];
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const wallet = useFerasStore((state) => state.wallet);
   const disconnectWallet = useFerasStore((state) => state.disconnectWallet);
   const connectWallet = useFerasStore((state) => state.connectWallet);
@@ -56,17 +58,8 @@ export default function ProfileScreen() {
     });
   };
 
-  const handleConnectWallet = async () => {
-    try {
-      await connectWallet('MWA');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to connect this wallet.';
-      showToast({
-        type: 'error',
-        title: message === 'Wallet connection was cancelled.' ? 'Connection Cancelled' : 'Wallet Connection Failed',
-        message,
-      });
-    }
+  const handleConnectWallet = () => {
+    router.push('/(onboarding)/connect-wallet');
   };
 
   return (
@@ -149,7 +142,7 @@ export default function ProfileScreen() {
             />
           ) : (
             <Button
-              title="Connect Android Wallet"
+              title="Sign In to Feras"
               onPress={handleConnectWallet}
               variant="primary"
               size="sm"
