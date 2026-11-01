@@ -38,23 +38,7 @@ function MobileWalletBridge() {
 
 function PrivyBridgeComponent() {
   useEffect(() => {
-    // Check if @privy-io/expo is available in the runtime environment
-    let privyBridge = null;
-
-    try {
-      // If Privy native provider is configured with an active App ID
-      if (PRIVY_CONFIG.isConfigured) {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const privyModule = require('@privy-io/expo');
-        if (privyModule) {
-          // Wire live SDK hooks / client
-        }
-      }
-    } catch {
-      // Native modules not bundled in current environment
-    }
-
-    // Set fallback / development bridge for friction-free onboarding across iOS & Android
+    // Set development bridge for friction-free onboarding across iOS & Android
     privyWalletService.setBridge({
       loginWithOAuth: async (provider: 'google' | 'apple') => {
         const devnetAddress =
