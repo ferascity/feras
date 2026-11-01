@@ -9,6 +9,7 @@ import {
 } from './IWalletService';
 import type { Instruction } from '@solana/kit';
 import { PRIVY_CONFIG } from './privyConfig';
+import { getActiveEmbeddedAccount } from './embeddedWallet';
 
 export interface PrivyBridge {
   loginWithOAuth(provider: 'google' | 'apple'): Promise<{ address: string; email?: string }>;
@@ -86,6 +87,23 @@ export class PrivyWalletService implements IWalletService {
   }
 
   async getState(): Promise<WalletState> {
+    if (!this.state.isConnected) {
+      const active = await getActiveEmbeddedAccount();
+      if (active) {
+        this.state = {
+          ...disconnectedState(),
+          isConnected: true,
+          address: active.address,
+          walletName:
+            active.provider === 'apple'
+              ? 'Apple'
+              : active.provider === 'google'
+              ? 'Google'
+              : 'Email',
+          mode: 'privy-embedded',
+        };
+      }
+    }
     return this.state.isConnected ? this.refreshBalances() : { ...this.state };
   }
 

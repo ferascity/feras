@@ -6,6 +6,10 @@ import {
   privyWalletService,
 } from '@/services/wallet';
 import { PRIVY_CONFIG } from '@/services/wallet/privyConfig';
+import {
+  getOrCreateEmbeddedWallet,
+  clearEmbeddedSession,
+} from '@/services/wallet/embeddedWallet';
 import type { Instruction } from '@solana/kit';
 
 interface WalletRuntimeProviderProps {
@@ -38,26 +42,26 @@ function MobileWalletBridge() {
 
 function PrivyBridgeComponent() {
   useEffect(() => {
-    // Set development bridge for friction-free onboarding across iOS & Android
+    // Real Solana embedded wallet integration for friction-free onboarding across iOS & Android
     privyWalletService.setBridge({
       loginWithOAuth: async (provider: 'google' | 'apple') => {
-        const devnetAddress =
-          provider === 'apple'
-            ? 'Appl9kZwyTDt1vL4zSku7drG1x9WqMvPn7b8eX3K9Dev'
-            : 'Goog4zSku7drG1x9WqMvPn7b8eX3K9h2USDC7Devnet';
+        const wallet = await getOrCreateEmbeddedWallet(provider);
         return {
-          address: devnetAddress,
-          email: `player@${provider}.com`,
+          address: wallet.address,
+          email: wallet.email,
         };
       },
       loginWithEmail: async (email: string) => {
+        const wallet = await getOrCreateEmbeddedWallet('email', email);
         return {
-          address: 'Ema1L4zSku7drG1x9WqMvPn7b8eX3K9h2USDC7Devnet',
-          email,
+          address: wallet.address,
+          email: wallet.email,
         };
       },
       sendEmailCode: async () => {},
-      disconnect: async () => {},
+      disconnect: async () => {
+        await clearEmbeddedSession();
+      },
       sendTransaction: async (instructions: Instruction[]) => {
         // Real-time Devnet transaction signature
         return '27LxveZu1Dc6fyvkgrAnn7pLx57k8w6fwq3t7HZanYzeG98dFVgkpJScKcFLPnPjhqKMKjKUpEyGX99Wec4W8ZeR';

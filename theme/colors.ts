@@ -4,24 +4,30 @@
  */
 
 export const AppleColors = {
-  // Base System Backgrounds
-  background: '#000000',                  // Pure Dark background
-  secondaryBackground: '#1C1C1E',         // System Grouped Secondary
-  tertiaryBackground: '#2C2C2E',          // System Grouped Tertiary
-  elevatedBackground: '#3A3A3C',          // Elevated cards & popovers
-  glassSurface: 'rgba(28, 28, 30, 0.72)',  // Frosted material
-  glassSurfaceLight: 'rgba(44, 44, 46, 0.65)',
+  // Base System Backgrounds (Minimalist Obsidian Slate)
+  background: '#08090A',                  // Pure Dark Obsidian background
+  secondaryBackground: '#121316',         // Minimalist Card & Grouped Secondary
+  tertiaryBackground: '#1A1C22',          // Elevated containers & subtle sheets
+  elevatedBackground: '#242730',          // Elevated cards & popovers
+  glassSurface: 'rgba(18, 19, 22, 0.85)', // Frosted material
+  glassSurfaceLight: 'rgba(26, 28, 34, 0.70)',
+
+  // Brand & High-Precision Accents (Matching Landing Page)
+  brandEmerald: '#10B981',                // Live badge, winning positions, positive yield
+  brandEmeraldSoft: 'rgba(16, 185, 129, 0.12)',
+  brandCyan: '#06B6D4',                   // Solana / Feras Secondary Accent
+  brandCyanSoft: 'rgba(6, 182, 212, 0.12)',
 
   // Apple System Accents
   systemBlue: '#0A84FF',                  // Primary iOS Accent (Action, Selection)
-  systemGreen: '#30D158',                 // Win, Favorable Odds, Positive PnL
-  systemRed: '#FF453A',                   // Loss, Unfavorable Odds, Check Warning
-  systemOrange: '#FF9F0A',                // Live badge, Warning, In-Progress
-  systemYellow: '#FFD60A',                // Highlight, Rating, Star
-  systemPurple: '#BF5AF2',                // Grandmaster / Special Tier
-  systemIndigo: '#5E5CE6',                // Engine / Neural Tier
-  systemTeal: '#64D2FF',                  // Experimental Tier
-  systemMint: '#63E6E2',                  // Bot Speed / Low Latency
+  systemGreen: '#10B981',                 // Win, Favorable Odds, Positive PnL
+  systemRed: '#EF4444',                   // Loss, Unfavorable Odds, Check Warning
+  systemOrange: '#F59E0B',                // In-Progress, Warning
+  systemYellow: '#FBBF24',                // Highlight, Rating, Star
+  systemPurple: '#A855F7',                // Grandmaster / Neural Tier
+  systemIndigo: '#6366F1',                // Engine / Deep Analysis
+  systemTeal: '#06B6D4',                  // Experimental Tier
+  systemMint: '#10B981',                  // Bot Speed / Sub-second Latency
 
   // System Text / Labels
   labelPrimary: '#FFFFFF',                // Primary Text

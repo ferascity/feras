@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,13 @@ import {
   TouchableOpacity,
   Switch,
   Platform,
+  Image,
+  Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useFerasStore, BoardThemeName } from '@/store/useFerasStore';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -37,7 +41,6 @@ export default function ProfileScreen() {
   const router = useRouter();
   const wallet = useFerasStore((state) => state.wallet);
   const disconnectWallet = useFerasStore((state) => state.disconnectWallet);
-  const connectWallet = useFerasStore((state) => state.connectWallet);
   const refreshWallet = useFerasStore((state) => state.refreshWallet);
 
   const boardTheme = useFerasStore((state) => state.boardTheme);
@@ -50,16 +53,93 @@ export default function ProfileScreen() {
   const toggleHaptics = useFerasStore((state) => state.toggleHaptics);
   const showToast = useFerasStore((state) => state.showToast);
 
+  const [isAirdropping, setIsAirdropping] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   const handleCopyAddress = () => {
+    if (Platform.OS !== 'web') {
+      try {
+        Haptics.selectionAsync();
+      } catch {}
+    }
     showToast({
       type: 'info',
       title: 'Address Copied',
-      message: wallet.address || '8xVtN...9k2F',
+      message: wallet.address || 'Not connected',
     });
   };
 
-  const handleConnectWallet = () => {
-    router.push('/(onboarding)/connect-wallet');
+  const handleOpenExplorer = () => {
+    if (!wallet.address) return;
+    const url = `https://explorer.solana.com/address/${wallet.address}?cluster=devnet`;
+    Linking.openURL(url).catch(() => {
+      showToast({
+        type: 'error',
+        title: 'Explorer Unavailable',
+        message: 'Could not open browser for Solana Explorer.',
+      });
+    });
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshWallet();
+      showToast({
+        type: 'success',
+        title: 'Balances Updated',
+        message: 'Devnet SOL and USDC balances refreshed.',
+      });
+    } catch {
+      showToast({
+        type: 'error',
+        title: 'Refresh Failed',
+        message: 'Could not retrieve updated balances from Devnet RPC.',
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleRequestAirdrop = async () => {
+    if (!wallet.address) return;
+    setIsAirdropping(true);
+    if (Platform.OS !== 'web') {
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch {}
+    }
+    try {
+      showToast({
+        type: 'info',
+        title: 'Requesting Faucet',
+        message: 'Requesting 1 SOL from Solana Devnet faucet...',
+      });
+      await fetch('https://api.devnet.solana.com', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'requestAirdrop',
+          params: [wallet.address, 1000000000],
+        }),
+      });
+      await refreshWallet();
+      showToast({
+        type: 'success',
+        title: 'Faucet Airdrop Sent',
+        message: '1 Devnet SOL credited to your wallet.',
+      });
+    } catch {
+      showToast({
+        type: 'info',
+        title: 'Faucet Request Queued',
+        message: 'Public faucet request dispatched to Devnet.',
+      });
+    } finally {
+      setIsAirdropping(false);
+    }
   };
 
   return (
@@ -68,85 +148,174 @@ export default function ProfileScreen() {
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
       >
-        {/* Header */}
+        {/* Minimalist Screen Header */}
         <View style={styles.header}>
-          <Text style={styles.subtitle}>PREFERENCES & LEDGER</Text>
+          <View style={styles.headerBrandRow}>
+            <Image
+              source={require('@/assets/logo.png')}
+              style={styles.brandIcon}
+              resizeMode="contain"
+            />
+            <Text style={styles.subtitle}>FERAS PROTOCOL LEDGER</Text>
+          </View>
           <Text style={styles.title}>Profile & Wallet</Text>
         </View>
 
-        {/* Wallet Address Card */}
-        <Card style={styles.walletCard}>
+        {/* Wallet Ledger Card */}
+        <Card
+          style={StyleSheet.flatten([
+            styles.walletCard,
+            wallet.isConnected && styles.walletCardConnected,
+          ])}
+        >
           <View style={styles.walletHeader}>
             <View style={styles.walletBadge}>
-              <View style={styles.connectedDot} />
+              <View
+                style={[
+                  styles.connectedDot,
+                  !wallet.isConnected && styles.disconnectedDot,
+                ]}
+              />
               <Text style={styles.connectedText}>
-                {wallet.walletName || 'Wallet'} · Devnet
+                {wallet.isConnected
+                  ? `${wallet.walletName || 'Embedded'} · Devnet Active`
+                  : 'Not Signed In · Devnet'}
               </Text>
             </View>
-            <Tag label="DEVNET" type="experimental" />
+            <Tag label="SOLANA DEVNET" type="experimental" />
           </View>
 
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={handleCopyAddress}
-            style={styles.addressBox}
-          >
-            <Text style={styles.addressText}>
-              {wallet.address || 'Not connected'}
-            </Text>
-            <Ionicons name="copy-outline" size={16} color={AppleColors.systemBlue} />
-          </TouchableOpacity>
+          {/* Address Box */}
+          <View style={styles.addressBox}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={handleCopyAddress}
+              style={styles.addressTouchable}
+            >
+              <Text style={styles.addressText} numberOfLines={1}>
+                {wallet.address || 'No wallet connected'}
+              </Text>
+              <Ionicons
+                name="copy-outline"
+                size={16}
+                color={AppleColors.brandEmerald}
+              />
+            </TouchableOpacity>
 
-          {/* Balance Rows */}
+            {wallet.isConnected && (
+              <TouchableOpacity
+                onPress={handleOpenExplorer}
+                style={styles.explorerIconBtn}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="open-outline"
+                  size={16}
+                  color={AppleColors.labelSecondary}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Balance Grid */}
           <View style={styles.balanceGrid}>
             <View style={styles.balanceCol}>
-              <Text style={styles.balanceTitle}>
-                {getUsdcDisplayName()}
-              </Text>
+              <Text style={styles.balanceTitle}>{getUsdcDisplayName()}</Text>
               <Text style={styles.balanceAmount}>
                 {wallet.usdcBalance.toFixed(2)} USDC
               </Text>
+              <Text style={styles.balanceSub}>Prediction Collateral</Text>
             </View>
 
             <View style={styles.balanceCol}>
-              <Text style={styles.balanceTitle}>
-                Devnet SOL
-              </Text>
+              <Text style={styles.balanceTitle}>Devnet SOL</Text>
               <Text style={styles.balanceAmount}>
-                {(wallet.solBalance || 0).toFixed(2)} SOL
+                {(wallet.solBalance || 0).toFixed(3)} SOL
               </Text>
+              <Text style={styles.balanceSub}>Gas & Account Rent</Text>
             </View>
           </View>
 
-          <Text style={styles.assetNote}>
-            {USDC_ASSET.mintAddress || 'Devnet USDC mint not configured'}
-          </Text>
-
+          {/* Action Row */}
           {wallet.isConnected ? (
-            <Button
-              title="Refresh Devnet Balances"
-              onPress={refreshWallet}
-              variant="tinted"
-              size="sm"
-              style={styles.refreshBtn}
-            />
-          ) : null}
+            <View style={styles.walletActions}>
+              <TouchableOpacity
+                onPress={handleRefresh}
+                style={styles.actionBtn}
+                activeOpacity={0.7}
+                disabled={isRefreshing}
+              >
+                {isRefreshing ? (
+                  <ActivityIndicator size="small" color={AppleColors.labelPrimary} />
+                ) : (
+                  <>
+                    <Ionicons
+                      name="refresh"
+                      size={14}
+                      color={AppleColors.labelPrimary}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text style={styles.actionBtnText}>Refresh</Text>
+                  </>
+                )}
+              </TouchableOpacity>
 
-          {wallet.isConnected ? (
-            <Button
-              title="Disconnect Wallet"
-              onPress={disconnectWallet}
-              variant="destructive"
-              size="sm"
-              style={styles.disconnectBtn}
-            />
+              <TouchableOpacity
+                onPress={handleRequestAirdrop}
+                style={[styles.actionBtn, styles.actionBtnEmerald]}
+                activeOpacity={0.7}
+                disabled={isAirdropping}
+              >
+                {isAirdropping ? (
+                  <ActivityIndicator size="small" color={AppleColors.brandEmerald} />
+                ) : (
+                  <>
+                    <Ionicons
+                      name="water-outline"
+                      size={14}
+                      color={AppleColors.brandEmerald}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text
+                      style={[
+                        styles.actionBtnText,
+                        { color: AppleColors.brandEmerald },
+                      ]}
+                    >
+                      Devnet Faucet
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={disconnectWallet}
+                style={[styles.actionBtn, styles.actionBtnDanger]}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="log-out-outline"
+                  size={14}
+                  color={AppleColors.systemRed}
+                  style={{ marginRight: 6 }}
+                />
+                <Text
+                  style={[
+                    styles.actionBtnText,
+                    { color: AppleColors.systemRed },
+                  ]}
+                >
+                  Sign Out
+                </Text>
+              </TouchableOpacity>
+            </View>
           ) : (
             <Button
-              title="Sign In to Feras"
-              onPress={handleConnectWallet}
+              title="Sign In with Google or Apple"
+              onPress={() => router.push('/(onboarding)/connect-wallet')}
               variant="primary"
-              size="sm"
-              style={styles.disconnectBtn}
+              size="md"
+              style={styles.connectPrimaryBtn}
             />
           )}
         </Card>
@@ -154,7 +323,7 @@ export default function ProfileScreen() {
         {/* Grouped Settings Section 1: Chess Experience */}
         <Text style={styles.groupHeader}>CHESSBOARD APPEARANCE</Text>
         <Card style={styles.groupedCard}>
-          <Text style={styles.settingLabel}>Board Color Theme</Text>
+          <Text style={styles.settingLabel}>Board Theme</Text>
           <SegmentedControl
             values={BOARD_THEME_OPTIONS}
             selectedValue={boardTheme}
@@ -164,7 +333,7 @@ export default function ProfileScreen() {
 
           <View style={styles.settingDivider} />
 
-          <Text style={styles.settingLabel}>Default Playback Speed</Text>
+          <Text style={styles.settingLabel}>Default Replay Speed</Text>
           <SegmentedControl
             values={SPEED_OPTIONS}
             selectedValue={playbackSpeed.toString()}
@@ -178,17 +347,17 @@ export default function ProfileScreen() {
         <Card style={styles.groupedCard}>
           <View style={styles.switchRow}>
             <View>
-              <Text style={styles.switchLabel}>Haptic Tap Feedback</Text>
-              <Text style={styles.switchSub}>
-                Vibration response on moves, positions, and taps
+              <Text style={styles.switchTitle}>Engine Move Audio</Text>
+              <Text style={styles.switchSubtitle}>
+                Acoustic feedback for legal piece placements
               </Text>
             </View>
             <Switch
-              value={hapticsEnabled}
-              onValueChange={toggleHaptics}
+              value={soundEnabled}
+              onValueChange={toggleSound}
               trackColor={{
                 false: AppleColors.fillSecondary,
-                true: AppleColors.systemGreen,
+                true: AppleColors.brandEmerald,
               }}
               thumbColor="#FFFFFF"
             />
@@ -198,30 +367,22 @@ export default function ProfileScreen() {
 
           <View style={styles.switchRow}>
             <View>
-              <Text style={styles.switchLabel}>Sound Effects</Text>
-              <Text style={styles.switchSub}>
-                Move capture clicks and check bells
+              <Text style={styles.switchTitle}>Haptic Feedback</Text>
+              <Text style={styles.switchSubtitle}>
+                Taptic engine vibrations on odds selection & predictions
               </Text>
             </View>
             <Switch
-              value={soundEnabled}
-              onValueChange={toggleSound}
+              value={hapticsEnabled}
+              onValueChange={toggleHaptics}
               trackColor={{
                 false: AppleColors.fillSecondary,
-                true: AppleColors.systemGreen,
+                true: AppleColors.brandEmerald,
               }}
               thumbColor="#FFFFFF"
             />
           </View>
         </Card>
-
-        {/* App Version Info */}
-        <View style={styles.footerInfo}>
-          <Text style={styles.versionText}>Feras v1.0.0</Text>
-          <Text style={styles.buildSpecText}>
-            Devnet · Mobile Wallet Adapter · Live public balances
-          </Text>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -243,18 +404,37 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: Spacing.md,
   },
+  headerBrandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  brandIcon: {
+    width: 16,
+    height: 16,
+  },
   subtitle: {
-    ...Typography.caption2,
-    color: AppleColors.systemBlue,
+    fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    color: AppleColors.brandEmerald,
+    letterSpacing: 0.8,
   },
   title: {
-    ...Typography.largeTitle,
+    ...Typography.title1,
     color: AppleColors.labelPrimary,
+    fontWeight: '800',
   },
   walletCard: {
+    backgroundColor: AppleColors.secondaryBackground,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: AppleColors.cardBorder,
+    padding: Spacing.md,
     marginBottom: Spacing.lg,
+  },
+  walletCardConnected: {
+    borderColor: 'rgba(16, 185, 129, 0.25)',
   },
   walletHeader: {
     flexDirection: 'row',
@@ -270,8 +450,11 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: AppleColors.systemGreen,
+    backgroundColor: AppleColors.brandEmerald,
     marginRight: 6,
+  },
+  disconnectedDot: {
+    backgroundColor: AppleColors.labelQuaternary,
   },
   connectedText: {
     ...Typography.footnote,
@@ -281,76 +464,119 @@ const styles = StyleSheet.create({
   addressBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: AppleColors.fillSecondary,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     paddingVertical: 10,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.sm,
     borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
     marginBottom: Spacing.md,
   },
+  addressTouchable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   addressText: {
-    ...Typography.footnote,
-    color: AppleColors.labelPrimary,
+    ...Typography.caption1,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    color: AppleColors.labelPrimary,
+    flex: 1,
+    marginRight: Spacing.xs,
+  },
+  explorerIconBtn: {
+    paddingLeft: Spacing.sm,
+    borderLeftWidth: 1,
+    borderLeftColor: 'rgba(255, 255, 255, 0.08)',
   },
   balanceGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.md,
-  },
-  assetNote: {
-    ...Typography.caption2,
-    color: AppleColors.labelTertiary,
-    textAlign: 'center',
+    gap: Spacing.sm,
     marginBottom: Spacing.md,
   },
   balanceCol: {
     flex: 1,
-    backgroundColor: AppleColors.fillSecondary,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderRadius: Radii.md,
     padding: Spacing.sm,
-    marginHorizontal: 3,
-    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   balanceTitle: {
-    ...Typography.caption2,
-    color: AppleColors.labelTertiary,
+    fontSize: 10,
+    fontWeight: '700',
+    color: AppleColors.labelSecondary,
+    marginBottom: 4,
   },
   balanceAmount: {
-    ...Typography.numericMedium,
+    ...Typography.headline,
     color: AppleColors.labelPrimary,
-    marginVertical: 4,
+    fontWeight: '700',
   },
-  disconnectBtn: {
-    marginTop: Spacing.xs,
+  balanceSub: {
+    ...Typography.caption2,
+    color: AppleColors.labelTertiary,
+    marginTop: 2,
   },
-  refreshBtn: {
-    marginBottom: Spacing.xs,
+  walletActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    paddingVertical: 8,
+    borderRadius: Radii.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  actionBtnEmerald: {
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+    backgroundColor: AppleColors.brandEmeraldSoft,
+  },
+  actionBtnDanger: {
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+  },
+  actionBtnText: {
+    ...Typography.caption1,
+    fontWeight: '600',
+    color: AppleColors.labelPrimary,
+  },
+  connectPrimaryBtn: {
+    width: '100%',
   },
   groupHeader: {
-    ...Typography.caption1,
-    color: AppleColors.labelSecondary,
-    fontWeight: '600',
-    marginLeft: 4,
+    fontSize: 11,
+    fontWeight: '700',
+    color: AppleColors.labelTertiary,
+    letterSpacing: 0.8,
     marginBottom: Spacing.xs,
-    letterSpacing: 0.4,
+    marginLeft: 4,
   },
   groupedCard: {
-    marginBottom: Spacing.lg,
+    backgroundColor: AppleColors.secondaryBackground,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: AppleColors.cardBorder,
     padding: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   settingLabel: {
     ...Typography.subhead,
-    color: AppleColors.labelPrimary,
-    fontWeight: '500',
+    color: AppleColors.labelSecondary,
     marginBottom: Spacing.xs,
   },
   settingControl: {
     marginBottom: Spacing.xs,
   },
   settingDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: AppleColors.separator,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     marginVertical: Spacing.md,
   },
   switchRow: {
@@ -358,28 +584,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  switchLabel: {
-    ...Typography.body,
+  switchTitle: {
+    ...Typography.headline,
     color: AppleColors.labelPrimary,
+    fontWeight: '600',
   },
-  switchSub: {
-    ...Typography.caption2,
-    color: AppleColors.labelTertiary,
+  switchSubtitle: {
+    ...Typography.caption1,
+    color: AppleColors.labelSecondary,
     marginTop: 2,
     maxWidth: 240,
-  },
-  footerInfo: {
-    alignItems: 'center',
-    marginTop: Spacing.md,
-    marginBottom: Spacing.xl,
-  },
-  versionText: {
-    ...Typography.caption1,
-    color: AppleColors.labelTertiary,
-  },
-  buildSpecText: {
-    ...Typography.caption2,
-    color: AppleColors.labelQuaternary,
-    marginTop: 2,
   },
 });

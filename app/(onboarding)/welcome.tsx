@@ -6,6 +6,7 @@ import {
   SafeAreaView,
   TouchableOpacity,
   Platform,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,24 +19,27 @@ import { Radii, Spacing } from '@/theme/spacing';
 const SLIDES = [
   {
     icon: 'hardware-chip-outline' as const,
+    badge: 'AUTONOMOUS ARENA',
+    color: AppleColors.brandEmerald,
+    title: 'Autonomous AI Grandmasters',
+    description:
+      'Continuous on-chain chess tournament rounds between neural engines with verifiable moves and sub-second execution.',
+  },
+  {
+    icon: 'stats-chart-outline' as const,
+    badge: 'LIVE PREDICTIONS',
+    color: AppleColors.brandCyan,
+    title: 'Dynamic Win Probability',
+    description:
+      'Live engine evaluations, move-by-move telemetry, and automated liquidity odds updating with every board state.',
+  },
+  {
+    icon: 'shield-checkmark-outline' as const,
+    badge: 'SOLANA DEVNET',
     color: AppleColors.systemBlue,
-    title: 'Autonomous Chess Agents',
+    title: '1-Tap Self-Custodial Wallet',
     description:
-      'Witness state-of-the-art neural engines and LLM-guided grandmasters battle in continuous tournaments with sub-second latency.',
-  },
-  {
-    icon: 'game-controller-outline' as const,
-    color: AppleColors.systemGreen,
-    title: 'High-Precision Live Replay',
-    description:
-      'Spectate live move-by-move replays with real-time win probability evaluation bars, move commentary, and tactical diagnostics.',
-  },
-  {
-    icon: 'wallet-outline' as const,
-    color: AppleColors.systemOrange,
-    title: 'Devnet Market Positions',
-    description:
-      'Explore simulated USDC market positions around autonomous matches, with auditable settlement planned for Solana devnet.',
+      'Sign in with Google or Apple. An embedded Solana Devnet wallet is generated automatically with zero seed phrase friction.',
   },
 ];
 
@@ -45,7 +49,7 @@ export default function WelcomeScreen() {
 
   const currentSlide = SLIDES[slideIndex];
 
-  const handleNext = () => {
+  const handleNextSlide = () => {
     if (Platform.OS !== 'web') {
       try {
         Haptics.selectionAsync();
@@ -61,58 +65,96 @@ export default function WelcomeScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* Skip button */}
-        <TouchableOpacity
-          onPress={() => router.replace('/(tabs)')}
-          style={styles.skipBtn}
-        >
-          <Text style={styles.skipText}>Skip</Text>
-        </TouchableOpacity>
-
-        {/* Feature Visual */}
-        <View style={styles.centerSection}>
-          <View
-            style={[
-              styles.iconCircle,
-              { backgroundColor: `${currentSlide.color}20` },
-            ]}
+        {/* Minimalist Top Bar */}
+        <View style={styles.topBar}>
+          <View style={styles.brandBadge}>
+            <View style={styles.livePulseDot} />
+            <Text style={styles.brandBadgeText}>DEVNET V1.0</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => router.replace('/(tabs)')}
+            style={styles.skipBtn}
+            activeOpacity={0.7}
           >
-            <Ionicons
-              name={currentSlide.icon}
-              size={54}
-              color={currentSlide.color}
+            <Text style={styles.skipText}>Skip</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Hero Section with Official Logo */}
+        <View style={styles.heroSection}>
+          <View style={styles.logoContainer}>
+            <Image
+              source={require('@/assets/logo.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
             />
           </View>
+          <Text style={styles.brandTitle}>FERAS</Text>
+          <Text style={styles.brandSubtitle}>
+            AUTONOMOUS CHESS ENGINE PROTOCOL
+          </Text>
+        </View>
+
+        {/* Feature Carousel Card */}
+        <View style={styles.featureCard}>
+          <View style={styles.slideHeader}>
+            <View
+              style={[
+                styles.iconBox,
+                { backgroundColor: `${currentSlide.color}15` },
+              ]}
+            >
+              <Ionicons
+                name={currentSlide.icon}
+                size={26}
+                color={currentSlide.color}
+              />
+            </View>
+            <View style={styles.badgePill}>
+              <Text
+                style={[
+                  styles.badgePillText,
+                  { color: currentSlide.color },
+                ]}
+              >
+                {currentSlide.badge}
+              </Text>
+            </View>
+          </View>
+
           <Text style={styles.slideTitle}>{currentSlide.title}</Text>
           <Text style={styles.slideDesc}>{currentSlide.description}</Text>
+
+          {/* Dots Indicator */}
+          <View style={styles.dotsRow}>
+            {SLIDES.map((_, idx) => (
+              <TouchableOpacity
+                key={idx}
+                onPress={() => setSlideIndex(idx)}
+                activeOpacity={0.8}
+                style={[
+                  styles.dot,
+                  idx === slideIndex && styles.activeDot,
+                ]}
+              />
+            ))}
+          </View>
         </View>
 
-        {/* Pagination Dots */}
-        <View style={styles.dotsRow}>
-          {SLIDES.map((_, idx) => (
-            <View
-              key={idx}
-              style={[
-                styles.dot,
-                idx === slideIndex && styles.activeDot,
-              ]}
-            />
-          ))}
-        </View>
-
-        {/* Action Buttons */}
+        {/* Bottom CTAs */}
         <View style={styles.bottomSection}>
           <Button
-            title={slideIndex === SLIDES.length - 1 ? 'Enter Arena' : 'Continue'}
-            onPress={handleNext}
+            title="Sign In with Google or Apple"
+            onPress={() => router.push('/(onboarding)/connect-wallet')}
             variant="primary"
             size="lg"
             style={styles.primaryBtn}
           />
+
           <Button
-            title="Connect Solana Wallet"
-            onPress={() => router.push('/(onboarding)/connect-wallet')}
-            variant="glass"
+            title={slideIndex === SLIDES.length - 1 ? 'Explore Arena as Guest' : 'Next Feature'}
+            onPress={handleNextSlide}
+            variant="secondary"
             size="md"
             style={styles.secondaryBtn}
           />
@@ -131,42 +173,131 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: Spacing.xl,
     justifyContent: 'space-between',
-    paddingBottom: Spacing.xl,
+    paddingBottom: Platform.OS === 'ios' ? Spacing.lg : Spacing.xl,
+    paddingTop: Spacing.sm,
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  brandBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: Radii.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  livePulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: AppleColors.brandEmerald,
+    marginRight: 6,
+  },
+  brandBadgeText: {
+    ...Typography.caption2,
+    color: AppleColors.labelSecondary,
+    fontWeight: '700',
+    letterSpacing: 0.8,
   },
   skipBtn: {
-    alignSelf: 'flex-end',
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.sm,
   },
   skipText: {
-    ...Typography.body,
+    ...Typography.subheadline,
     color: AppleColors.labelSecondary,
   },
-  centerSection: {
+  heroSection: {
     alignItems: 'center',
-    paddingHorizontal: Spacing.md,
+    marginTop: Spacing.sm,
   },
-  iconCircle: {
-    width: 108,
-    height: 108,
-    borderRadius: 54,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.xl,
+  logoContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+    backgroundColor: AppleColors.secondaryBackground,
     borderWidth: 1,
     borderColor: AppleColors.cardBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 8,
   },
-  slideTitle: {
+  logoImage: {
+    width: 52,
+    height: 52,
+  },
+  brandTitle: {
     ...Typography.title1,
     color: AppleColors.labelPrimary,
-    textAlign: 'center',
-    marginBottom: Spacing.sm,
+    fontWeight: '800',
+    letterSpacing: 2,
+    marginBottom: 4,
+  },
+  brandSubtitle: {
+    ...Typography.caption1,
+    color: AppleColors.labelTertiary,
+    fontWeight: '600',
+    letterSpacing: 1.2,
+  },
+  featureCard: {
+    backgroundColor: AppleColors.secondaryBackground,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: AppleColors.cardBorder,
+    padding: Spacing.xl,
+    marginVertical: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+  },
+  slideHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
+  },
+  iconBox: {
+    width: 50,
+    height: 50,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  badgePill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: Radii.pill,
+  },
+  badgePillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+  },
+  slideTitle: {
+    ...Typography.title3,
+    color: AppleColors.labelPrimary,
+    fontWeight: '700',
+    marginBottom: Spacing.xs,
   },
   slideDesc: {
     ...Typography.callout,
     color: AppleColors.labelSecondary,
-    textAlign: 'center',
     lineHeight: 22,
+    marginBottom: Spacing.lg,
   },
   dotsRow: {
     flexDirection: 'row',
@@ -177,12 +308,12 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: AppleColors.fillSecondary,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     marginHorizontal: 4,
   },
   activeDot: {
     width: 24,
-    backgroundColor: AppleColors.systemBlue,
+    backgroundColor: AppleColors.labelPrimary,
   },
   bottomSection: {
     width: '100%',

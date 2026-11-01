@@ -61,21 +61,57 @@ export default function HomeScreen() {
           />
         }
       >
-        {/* iOS Header */}
+        {/* iOS Minimalist Header with Logo & Wallet Status */}
         <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.headerSubtitle}>AUTONOMOUS CHESS TOURNAMENTS</Text>
-            <Text style={styles.headerTitle}>Live Arena</Text>
+          <View style={styles.headerLeft}>
+            <View style={styles.headerLogoBox}>
+              <Image
+                source={require('@/assets/logo.png')}
+                style={styles.headerLogoImg}
+                resizeMode="contain"
+              />
+            </View>
+            <View>
+              <View style={styles.brandTitleRow}>
+                <Text style={styles.headerBrandTitle}>FERAS</Text>
+                <View style={styles.devnetPill}>
+                  <View style={styles.devnetDot} />
+                  <Text style={styles.devnetPillText}>DEVNET</Text>
+                </View>
+              </View>
+              <Text style={styles.headerSubtitle}>AUTONOMOUS CHESS ARENA</Text>
+            </View>
           </View>
+
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => router.push('/(tabs)/profile')}
-            style={styles.walletPill}
+            onPress={() =>
+              wallet.isConnected
+                ? router.push('/(tabs)/profile')
+                : router.push('/(onboarding)/connect-wallet')
+            }
+            style={[
+              styles.walletPill,
+              wallet.isConnected && styles.walletPillConnected,
+            ]}
           >
-            <View style={styles.statusDot} />
+            <View
+              style={[
+                styles.statusDot,
+                wallet.isConnected && styles.statusDotActive,
+              ]}
+            />
             <Text style={styles.walletBalanceText}>
-              {wallet.usdcBalance.toFixed(0)} USDC
+              {wallet.isConnected
+                ? `${wallet.usdcBalance.toFixed(0)} USDC`
+                : 'Sign In'}
             </Text>
+            <Ionicons
+              name={wallet.isConnected ? 'chevron-forward' : 'arrow-forward'}
+              size={12}
+              color={AppleColors.labelSecondary}
+              style={{ marginLeft: 3 }}
+            />
           </TouchableOpacity>
         </View>
 
@@ -343,35 +379,92 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: Spacing.md,
   },
-  headerSubtitle: {
-    ...Typography.caption2,
-    color: AppleColors.systemBlue,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
-  headerTitle: {
-    ...Typography.largeTitle,
+  headerLogoBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: AppleColors.secondaryBackground,
+    borderWidth: 1,
+    borderColor: AppleColors.cardBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerLogoImg: {
+    width: 26,
+    height: 26,
+  },
+  brandTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  headerBrandTitle: {
+    ...Typography.title3,
     color: AppleColors.labelPrimary,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+  },
+  devnetPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: Radii.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+  },
+  devnetDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: AppleColors.brandEmerald,
+    marginRight: 4,
+  },
+  devnetPillText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: AppleColors.brandEmerald,
+    letterSpacing: 0.6,
+  },
+  headerSubtitle: {
+    fontSize: 9,
+    color: AppleColors.labelTertiary,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    marginTop: 1,
   },
   walletPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: AppleColors.fillSecondary,
+    backgroundColor: AppleColors.secondaryBackground,
     paddingVertical: 6,
-    paddingHorizontal: Spacing.sm,
+    paddingHorizontal: 10,
     borderRadius: Radii.pill,
     borderWidth: 1,
     borderColor: AppleColors.cardBorder,
+  },
+  walletPillConnected: {
+    borderColor: 'rgba(16, 185, 129, 0.35)',
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
   },
   statusDot: {
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: AppleColors.systemGreen,
+    backgroundColor: AppleColors.labelQuaternary,
     marginRight: 6,
   },
+  statusDotActive: {
+    backgroundColor: AppleColors.brandEmerald,
+  },
   walletBalanceText: {
-    ...Typography.footnote,
+    ...Typography.caption1,
     fontWeight: '600',
     color: AppleColors.labelPrimary,
   },

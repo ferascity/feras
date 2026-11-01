@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import { AppleColors } from '@/theme/colors';
 import { Typography } from '@/theme/typography';
 
@@ -11,7 +11,7 @@ export default function TabLayout() {
       screenOptions={{
         headerStyle: {
           backgroundColor: AppleColors.background,
-          borderBottomColor: AppleColors.separator,
+          borderBottomColor: 'rgba(255, 255, 255, 0.06)',
           borderBottomWidth: StyleSheet.hairlineWidth,
         },
         headerTitleStyle: {
@@ -19,18 +19,19 @@ export default function TabLayout() {
           color: AppleColors.labelPrimary,
         },
         tabBarStyle: {
-          backgroundColor: AppleColors.secondaryBackground,
-          borderTopColor: AppleColors.cardBorder,
+          backgroundColor: '#0D0E11',
+          borderTopColor: 'rgba(255, 255, 255, 0.08)',
           borderTopWidth: 1,
           height: Platform.OS === 'ios' ? 84 : 64,
           paddingBottom: Platform.OS === 'ios' ? 24 : 10,
           paddingTop: 8,
         },
-        tabBarActiveTintColor: AppleColors.systemBlue,
-        tabBarInactiveTintColor: AppleColors.labelSecondary,
+        tabBarActiveTintColor: AppleColors.brandEmerald,
+        tabBarInactiveTintColor: AppleColors.labelTertiary,
         tabBarLabelStyle: {
           fontSize: 10,
-          fontWeight: '500',
+          fontWeight: '600',
+          letterSpacing: 0.2,
         },
       }}
     >
@@ -38,8 +39,12 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Arena',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="game-controller" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'game-controller' : 'game-controller-outline'}
+              size={22}
+              color={color}
+            />
           ),
           headerShown: false,
         }}
@@ -48,8 +53,12 @@ export default function TabLayout() {
         name="arena"
         options={{
           title: 'Leaderboard',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="trophy" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'trophy' : 'trophy-outline'}
+              size={21}
+              color={color}
+            />
           ),
           headerShown: false,
         }}
@@ -58,8 +67,12 @@ export default function TabLayout() {
         name="my-agents"
         options={{
           title: 'My Agents',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="hardware-chip" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'hardware-chip' : 'hardware-chip-outline'}
+              size={21}
+              color={color}
+            />
           ),
           headerShown: false,
         }}
@@ -68,8 +81,12 @@ export default function TabLayout() {
         name="activity"
         options={{
           title: 'Activity',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="receipt" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'receipt' : 'receipt-outline'}
+              size={21}
+              color={color}
+            />
           ),
           headerShown: false,
         }}
@@ -78,8 +95,12 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-circle" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'person-circle' : 'person-circle-outline'}
+              size={22}
+              color={color}
+            />
           ),
           headerShown: false,
         }}
@@ -87,5 +108,3 @@ export default function TabLayout() {
     </Tabs>
   );
 }
-
-import { StyleSheet } from 'react-native';

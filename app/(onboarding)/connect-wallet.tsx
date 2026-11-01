@@ -4,9 +4,9 @@ import {
   Text,
   StyleSheet,
   SafeAreaView,
-  TouchableOpacity,
   ActivityIndicator,
   Platform,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,8 +35,8 @@ const WALLET_PROVIDERS: ProviderOption[] = [
     name: 'Continue with Google',
     icon: 'logo-google',
     color: '#EA4335',
-    badge: 'Fastest',
-    desc: 'Instant self-custodial Solana wallet. No seed phrase required.',
+    badge: '1-Tap Solana Wallet',
+    desc: 'Instant cryptographic Solana Devnet wallet generated on sign-in.',
     recommended: true,
   },
   {
@@ -44,23 +44,24 @@ const WALLET_PROVIDERS: ProviderOption[] = [
     name: 'Continue with Apple',
     icon: 'logo-apple',
     color: AppleColors.labelPrimary,
-    desc: 'Sign in securely with Apple ID. Native on iOS.',
+    badge: 'Native iOS',
+    desc: 'Sign in securely with Apple ID. Generates self-custodial Solana keypair.',
   },
   {
     id: 'Email',
     name: 'Continue with Email',
-    icon: 'mail',
-    color: AppleColors.systemBlue,
-    desc: 'Passwordless one-time verification code to your inbox.',
+    icon: 'mail-outline',
+    color: AppleColors.brandCyan,
+    desc: 'Passwordless sign-in with your email address.',
   },
   {
     id: 'MWA',
-    name: 'External Wallet (MWA)',
-    icon: 'phone-portrait',
+    name: 'External Phantom / Solflare',
+    icon: 'wallet-outline',
     color: AppleColors.systemPurple,
     desc: isMobileWalletRuntime
-      ? 'Connect Phantom or Solflare via Mobile Wallet Adapter'
-      : 'Requires Android development build (Phantom / Solflare)',
+      ? 'Connect external Solana wallet via Mobile Wallet Adapter'
+      : 'Requires Android build (Phantom / Solflare)',
   },
 ];
 
@@ -93,6 +94,11 @@ export default function ConnectWalletModal() {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch {}
       }
+      useFerasStore.getState().showToast({
+        type: 'success',
+        title: 'Wallet Connected',
+        message: `Signed in with ${provider.name.replace('Continue with ', '')}.`,
+      });
       router.back();
     } catch (error) {
       setConnectingProvider(null);
@@ -107,13 +113,27 @@ export default function ConnectWalletModal() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
+        {/* Header with Logo */}
         <View style={styles.header}>
-          <Text style={styles.title}>Sign In to Feras</Text>
+          <View style={styles.logoRow}>
+            <View style={styles.logoContainer}>
+              <Image
+                source={require('@/assets/logo.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
+            </View>
+            <View>
+              <Text style={styles.title}>Sign In to Feras</Text>
+              <Text style={styles.protocolBadge}>SELF-CUSTODIAL SOLANA DEVNET</Text>
+            </View>
+          </View>
           <Text style={styles.subtext}>
-            Connect your self-custodial Solana wallet in one tap. Your wallet is created instantly and secured with multi-party computation.
+            Connect in one tap. Your cryptographic ed25519 Solana wallet is generated automatically for instant predictions.
           </Text>
         </View>
 
+        {/* Provider List */}
         <View style={styles.walletList}>
           {WALLET_PROVIDERS.map((provider) => {
             const isConnecting = connectingProvider === provider.id;
@@ -129,7 +149,7 @@ export default function ConnectWalletModal() {
                 <View
                   style={[
                     styles.walletIconCircle,
-                    { backgroundColor: `${provider.color}18` },
+                    { backgroundColor: `${provider.color}15` },
                   ]}
                 >
                   <Ionicons
@@ -143,8 +163,20 @@ export default function ConnectWalletModal() {
                   <View style={styles.nameRow}>
                     <Text style={styles.walletName}>{provider.name}</Text>
                     {provider.badge && (
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{provider.badge}</Text>
+                      <View
+                        style={[
+                          styles.badge,
+                          provider.recommended && styles.recommendedBadge,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.badgeText,
+                            provider.recommended && styles.recommendedBadgeText,
+                          ]}
+                        >
+                          {provider.badge}
+                        </Text>
                       </View>
                     )}
                   </View>
@@ -152,7 +184,7 @@ export default function ConnectWalletModal() {
                 </View>
 
                 {isConnecting ? (
-                  <ActivityIndicator size="small" color={AppleColors.systemBlue} />
+                  <ActivityIndicator size="small" color={AppleColors.brandEmerald} />
                 ) : (
                   <Ionicons
                     name="chevron-forward"
@@ -165,15 +197,16 @@ export default function ConnectWalletModal() {
           })}
         </View>
 
+        {/* Footer Guarantee */}
         <View style={styles.footer}>
           <View style={styles.guaranteeRow}>
-            <Ionicons name="shield-checkmark" size={14} color={AppleColors.systemGreen} />
+            <Ionicons name="shield-checkmark" size={15} color={AppleColors.brandEmerald} />
             <Text style={styles.guaranteeText}>
-              Non-custodial · Solana Devnet · Multi-Party Computation
+              Non-custodial · Cryptographic ed25519 · Solana Devnet
             </Text>
           </View>
           <Text style={styles.footerNote}>
-            Feras never has access to your private keys or personal credentials.
+            Feras never stores or transmits private keys. Your wallet persists securely on your device.
           </Text>
         </View>
       </View>
@@ -188,7 +221,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
     justifyContent: 'space-between',
     paddingBottom: Spacing.xl,
@@ -196,12 +229,40 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: Spacing.lg,
   },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  logoContainer: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: AppleColors.secondaryBackground,
+    borderWidth: 1,
+    borderColor: AppleColors.cardBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  logoImage: {
+    width: 30,
+    height: 30,
+  },
   title: {
-    ...Typography.title1,
+    ...Typography.title2,
     color: AppleColors.labelPrimary,
+    fontWeight: '800',
+  },
+  protocolBadge: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: AppleColors.brandEmerald,
+    letterSpacing: 0.8,
+    marginTop: 2,
   },
   subtext: {
-    ...Typography.subhead,
+    ...Typography.callout,
     color: AppleColors.labelSecondary,
     marginTop: 6,
     lineHeight: 20,
@@ -214,69 +275,84 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.sm,
     padding: Spacing.md,
-    borderRadius: Radii.lg,
+    borderRadius: 18,
+    backgroundColor: AppleColors.secondaryBackground,
+    borderWidth: 1,
+    borderColor: AppleColors.cardBorder,
   },
   recommendedItem: {
-    borderColor: 'rgba(234, 67, 53, 0.3)',
-    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.35)',
+    backgroundColor: 'rgba(18, 19, 22, 0.95)',
   },
   walletIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   walletInfo: {
     flex: 1,
-    paddingRight: Spacing.sm,
+    marginRight: Spacing.sm,
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 3,
   },
   walletName: {
     ...Typography.headline,
     color: AppleColors.labelPrimary,
+    fontWeight: '600',
   },
   badge: {
-    backgroundColor: 'rgba(234, 67, 53, 0.15)',
-    paddingHorizontal: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: Radii.pill,
+  },
+  recommendedBadge: {
+    backgroundColor: AppleColors.brandEmeraldSoft,
   },
   badgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#EA4335',
-    textTransform: 'uppercase',
+    color: AppleColors.labelSecondary,
+  },
+  recommendedBadgeText: {
+    color: AppleColors.brandEmerald,
   },
   walletDesc: {
-    ...Typography.caption1,
+    ...Typography.footnote,
     color: AppleColors.labelSecondary,
-    marginTop: 2,
-    lineHeight: 15,
+    lineHeight: 16,
   },
   footer: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    paddingTop: Spacing.md,
     alignItems: 'center',
-    paddingVertical: Spacing.md,
-    gap: 6,
   },
   guaranteeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    marginBottom: 4,
   },
   guaranteeText: {
     ...Typography.caption1,
-    color: AppleColors.systemGreen,
+    color: AppleColors.labelPrimary,
     fontWeight: '600',
   },
   footerNote: {
     ...Typography.caption2,
     color: AppleColors.labelTertiary,
     textAlign: 'center',
+    lineHeight: 16,
   },
 });
