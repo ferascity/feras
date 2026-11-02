@@ -7,6 +7,7 @@ import {
   USDC_ASSET,
 } from '@/services/solana/config';
 import { AccountRole, address, type Instruction } from '@solana/kit';
+import { deductCreditedUsdc } from '@/services/solana/swapService';
 
 let inMemoryPositions: MarketPosition[] = [];
 
@@ -185,6 +186,8 @@ export async function placePosition(
     instructions: transaction.instructions,
     correlationId: transaction.correlationId,
   });
+
+  await deductCreditedUsdc(wallet.address, params.stakeUsdc);
 
   const newPosition: MarketPosition = {
     id: `position-${Date.now()}`,

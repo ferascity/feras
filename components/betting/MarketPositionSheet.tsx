@@ -6,6 +6,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -19,6 +20,12 @@ import { AppleColors } from '@/theme/colors';
 import { Typography } from '@/theme/typography';
 import { Radii, Spacing } from '@/theme/spacing';
 import { getUsdcDisplayName } from '@/services/solana/config';
+import {
+  calculateRequiredSol,
+  autoConvertSolToUsdc,
+  claimDevnetFaucetSol,
+  SOL_USD_RATE,
+} from '@/services/solana/swapService';
 
 const PRESET_STAKES = [10, 25, 50, 100, 250];
 
@@ -37,6 +44,8 @@ export function MarketPositionSheet() {
   const showToast = useFerasStore((state) => state.showToast);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
+  const [isClaimingFaucet, setIsClaimingFaucet] = useState(false);
   const [receipt, setReceipt] = useState<TransactionReceipt | null>(null);
 
   if (!match) return null;
@@ -45,6 +54,13 @@ export function MarketPositionSheet() {
   const hasInsufficientFunds = wallet.usdcBalance < stake;
   const canCreateMarketPosition = wallet.capabilities.canCreateMarketPositions;
 
+  // Auto-conversion calculations
+  const deficitUsdc = Math.max(0, Number((stake - wallet.usdcBalance).toFixed(2)));
+  const requiredSol = calculateRequiredSol(deficitUsdc);
+  const userSol = wallet.solBalance || 0;
+  const canAutoConvert = hasInsufficientFunds && userSol >= requiredSol;
+  const isCompletelyOutOfFunds = hasInsufficientFunds && userSol < requiredSol;
+
   const handleSelectPreset = (amount: number) => {
     if (Platform.OS !== 'web') {
       Haptics.selectionAsync().catch(() => undefined);
@@ -52,11 +68,39 @@ export function MarketPositionSheet() {
     setStake(amount);
   };
 
-  const handleCreatePosition = async () => {
-    if (hasInsufficientFunds || stake <= 0 || isSubmitting || !canCreateMarketPosition) return;
-
+  const handleClaimFaucet = async () => {
+    if (!wallet.address) return;
+    setIsClaimingFaucet(true);
+    if (Platform.OS !== 'web') {
+      Haptics.selectionAsync().catch(() => undefined);
+    }
+    showToast({
+      type: 'info',
+      title: 'Requesting Faucet',
+      message: 'Requesting 1 SOL from Devnet faucet...',
+    });
     try {
-      setIsSubmitting(true);
+      await claimDevnetFaucetSol(wallet.address);
+      await refreshWallet();
+      showToast({
+        type: 'success',
+        title: 'Faucet Credited',
+        message: '1 Devnet SOL credited to your wallet.',
+      });
+    } catch {
+      showToast({
+        type: 'error',
+        title: 'Faucet Unavailable',
+        message: 'Could not claim Devnet faucet at this moment.',
+      });
+    } finally {
+      setIsClaimingFaucet(false);
+    }
+  };
+
+  const executePosition = async () => {
+    setIsSubmitting(true);
+    try {
       const position = await placePosition({
         matchId: match.id,
         matchTitle: match.title,
@@ -72,7 +116,7 @@ export function MarketPositionSheet() {
       setReceipt(position.receipt);
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(
-          Haptics.NotificationFeedbackType.Success,
+          Haptics.NotificationFeedbackType.Success
         ).catch(() => undefined);
       }
       showToast({
@@ -91,10 +135,79 @@ export function MarketPositionSheet() {
     }
   };
 
+  const handleCreatePosition = async () => {
+    if (hasInsufficientFunds || stake <= 0 || isSubmitting || !canCreateMarketPosition) return;
+    await executePosition();
+  };
+
+  const handleAutoConvertAndPlace = async () => {
+    if (isConverting || isSubmitting || !canCreateMarketPosition) return;
+    if (!wallet.address) {
+      showToast({
+        type: 'error',
+        title: 'Wallet Not Connected',
+        message: 'Connect your wallet before placing a prediction.',
+      });
+      return;
+    }
+
+    try {
+      setIsConverting(true);
+      if (Platform.OS !== 'web') {
+        Haptics.selectionAsync().catch(() => undefined);
+      }
+      showToast({
+        type: 'info',
+        title: 'Auto-Converting SOL',
+        message: `Converting ~${requiredSol} SOL to ${deficitUsdc.toFixed(2)} USDC...`,
+      });
+
+      // Auto-convert SOL into USDC
+      await autoConvertSolToUsdc(wallet.address, requiredSol);
+      await refreshWallet();
+
+      // Proceed immediately to execute the prediction
+      await executePosition();
+    } catch (error) {
+      showToast({
+        type: 'error',
+        title: 'Auto-Conversion Failed',
+        message: error instanceof Error ? error.message : 'Unable to auto-convert SOL.',
+      });
+    } finally {
+      setIsConverting(false);
+    }
+  };
+
   const handleClose = () => {
     setReceipt(null);
     close();
   };
+
+  // Determine button title, action, and loading state
+  let buttonTitle = `Review ${stake} USDC Transaction`;
+  let buttonAction = handleCreatePosition;
+  let buttonDisabled = stake <= 0 || !canCreateMarketPosition;
+  let buttonLoading = isSubmitting;
+
+  if (hasInsufficientFunds) {
+    if (canAutoConvert) {
+      buttonTitle = `Auto-Convert ${requiredSol} SOL & Bet`;
+      buttonAction = handleAutoConvertAndPlace;
+      buttonDisabled = !canCreateMarketPosition;
+      buttonLoading = isConverting || isSubmitting;
+    } else {
+      buttonTitle = 'Claim Devnet Faucet SOL';
+      buttonAction = handleClaimFaucet;
+      buttonDisabled = false;
+      buttonLoading = isClaimingFaucet;
+    }
+  }
+
+  if (!canCreateMarketPosition && !hasInsufficientFunds) {
+    buttonTitle = 'Devnet Market Not Configured';
+    buttonDisabled = true;
+  }
 
   return (
     <BottomSheet
@@ -107,17 +220,12 @@ export function MarketPositionSheet() {
           <Button title="Done" onPress={handleClose} size="lg" style={styles.fullWidth} />
         ) : (
           <Button
-            title={
-              hasInsufficientFunds
-                ? 'Insufficient USDC'
-                : !canCreateMarketPosition
-                  ? 'Devnet Market Not Configured'
-                : `Review ${stake} USDC Transaction`
-            }
-            onPress={handleCreatePosition}
-            disabled={hasInsufficientFunds || stake <= 0 || !canCreateMarketPosition}
-            loading={isSubmitting}
+            title={buttonTitle}
+            onPress={buttonAction}
+            disabled={buttonDisabled}
+            loading={buttonLoading}
             size="lg"
+            variant="primary"
             style={styles.fullWidth}
           />
         )
@@ -128,7 +236,7 @@ export function MarketPositionSheet() {
           <Ionicons
             name="checkmark-circle"
             size={52}
-            color={AppleColors.systemGreen}
+            color={AppleColors.brandEmerald}
           />
           <Text style={styles.successTitle}>
             {receipt.status === 'CONFIRMED' ? 'Transaction Confirmed' : 'Transaction Submitted'}
@@ -160,7 +268,6 @@ export function MarketPositionSheet() {
               </Text>
             </View>
           </View>
-
         </View>
       ) : (
         <View style={styles.content}>
@@ -224,10 +331,54 @@ export function MarketPositionSheet() {
             <View style={styles.balanceContainer}>
               <Text style={styles.balanceLabel}>Available</Text>
               <Text style={styles.balanceValue}>{wallet.usdcBalance.toFixed(2)} USDC</Text>
+              <Text style={styles.solBalanceSub}>
+                {(wallet.solBalance || 0).toFixed(3)} SOL
+              </Text>
             </View>
           </View>
 
-          {hasInsufficientFunds && (
+          {/* Auto-Conversion Helper Card */}
+          {canAutoConvert && (
+            <View style={styles.autoConvertCard}>
+              <View style={styles.autoConvertHeader}>
+                <Ionicons name="flash" size={15} color={AppleColors.brandEmerald} />
+                <Text style={styles.autoConvertTitle}>SOL Auto-Convert Available</Text>
+              </View>
+              <Text style={styles.autoConvertText}>
+                You have {userSol.toFixed(3)} SOL available. Tap below to automatically convert ~{requiredSol} SOL into {deficitUsdc.toFixed(2)} USDC (at 1 SOL ≈ ${SOL_USD_RATE} USDC) and submit your bet in one tap.
+              </Text>
+            </View>
+          )}
+
+          {/* Faucet Prompt Card when completely out of both USDC & SOL */}
+          {isCompletelyOutOfFunds && (
+            <View style={styles.faucetPromptCard}>
+              <View style={styles.faucetHeader}>
+                <Ionicons name="alert-circle-outline" size={16} color={AppleColors.systemOrange} />
+                <Text style={styles.faucetTitle}>Insufficient USDC & SOL</Text>
+              </View>
+              <Text style={styles.faucetText}>
+                You need {stake} USDC (or ~{requiredSol} SOL) to place this prediction.
+              </Text>
+              <TouchableOpacity
+                onPress={handleClaimFaucet}
+                style={styles.faucetBtn}
+                activeOpacity={0.8}
+                disabled={isClaimingFaucet}
+              >
+                {isClaimingFaucet ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons name="water-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+                    <Text style={styles.faucetBtnText}>Claim 1 Devnet SOL Faucet</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {hasInsufficientFunds && !canAutoConvert && !isCompletelyOutOfFunds && (
             <Text style={styles.errorText}>Insufficient Devnet USDC in the connected wallet.</Text>
           )}
 
@@ -246,7 +397,6 @@ export function MarketPositionSheet() {
               Pari-mutuel estimates change with the pool until the market locks.
             </Text>
           </View>
-
         </View>
       )}
     </BottomSheet>
@@ -318,6 +468,78 @@ const styles = StyleSheet.create({
   balanceContainer: { alignItems: 'flex-end' },
   balanceLabel: { ...Typography.caption2, color: AppleColors.labelTertiary },
   balanceValue: { ...Typography.numericSmall, color: AppleColors.labelPrimary },
+  solBalanceSub: {
+    fontSize: 10,
+    color: AppleColors.brandEmerald,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  autoConvertCard: {
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+    padding: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  autoConvertHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  autoConvertTitle: {
+    ...Typography.caption1,
+    color: AppleColors.brandEmerald,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  autoConvertText: {
+    ...Typography.caption2,
+    color: AppleColors.labelSecondary,
+    lineHeight: 16,
+  },
+  faucetPromptCard: {
+    backgroundColor: 'rgba(255, 159, 10, 0.08)',
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 159, 10, 0.25)',
+    padding: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  faucetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  faucetTitle: {
+    ...Typography.caption1,
+    color: AppleColors.systemOrange,
+    fontWeight: '700',
+  },
+  faucetText: {
+    ...Typography.caption2,
+    color: AppleColors.labelSecondary,
+    lineHeight: 16,
+    marginBottom: Spacing.xs,
+  },
+  faucetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: AppleColors.brandEmerald,
+    paddingVertical: 7,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radii.pill,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  faucetBtnText: {
+    ...Typography.caption1,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
   errorText: { ...Typography.caption1, color: AppleColors.systemRed, marginBottom: Spacing.sm },
   estimateCard: {
     padding: Spacing.md,
@@ -329,7 +551,7 @@ const styles = StyleSheet.create({
   receiptRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
   receiptLabel: { ...Typography.footnote, color: AppleColors.labelSecondary },
   receiptValue: { ...Typography.footnote, color: AppleColors.labelPrimary, fontWeight: '600' },
-  returnValue: { color: AppleColors.systemGreen },
+  returnValue: { color: AppleColors.brandEmerald },
   fullWidth: { width: '100%' },
   successContainer: { alignItems: 'center', paddingVertical: Spacing.md },
   successTitle: { ...Typography.title2, color: AppleColors.labelPrimary, marginTop: Spacing.sm },
@@ -349,11 +571,5 @@ const styles = StyleSheet.create({
     ...Typography.caption1,
     color: AppleColors.systemBlue,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-  },
-  disclaimer: {
-    ...Typography.caption1,
-    color: AppleColors.labelSecondary,
-    textAlign: 'center',
-    marginBottom: Spacing.lg,
   },
 });
