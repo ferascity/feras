@@ -1,11 +1,5 @@
 import React, { useEffect } from 'react';
-import { SOLANA_CONFIG } from '@/services/solana/config';
-import {
-  isMobileWalletRuntime,
-  mobileWalletService,
-  privyWalletService,
-} from '@/services/wallet';
-import { PRIVY_CONFIG } from '@/services/wallet/privyConfig';
+import { privyWalletService } from '@/services/wallet';
 import {
   getOrCreateEmbeddedWallet,
   clearEmbeddedSession,
@@ -14,30 +8,6 @@ import type { Instruction } from '@solana/kit';
 
 interface WalletRuntimeProviderProps {
   children: React.ReactNode;
-}
-
-function MobileWalletBridge() {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { useMobileWallet } = require('@wallet-ui/react-native-kit') as typeof import('@wallet-ui/react-native-kit');
-  const { account, connect, disconnect, sendTransaction } = useMobileWallet();
-
-  useEffect(() => {
-    mobileWalletService.setBridge({
-      connect: async () => {
-        const connectedAccount = await connect();
-        return {
-          address: connectedAccount.address,
-          label: connectedAccount.label,
-        };
-      },
-      disconnect,
-      sendTransaction,
-    });
-
-    return () => mobileWalletService.setBridge(null);
-  }, [account, connect, disconnect, sendTransaction]);
-
-  return null;
 }
 
 function PrivyBridgeComponent() {
@@ -75,27 +45,7 @@ function PrivyBridgeComponent() {
 }
 
 export function WalletRuntimeProvider({ children }: WalletRuntimeProviderProps) {
-  // Mobile Wallet Adapter on Android Development Builds
-  if (isMobileWalletRuntime) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { MobileWalletProvider } = require('@wallet-ui/react-native-kit') as typeof import('@wallet-ui/react-native-kit');
-      return (
-        <MobileWalletProvider
-          cluster={{ id: 'solana:devnet', url: SOLANA_CONFIG.rpcUrl }}
-          identity={{ name: 'Feras', uri: 'https://feras.app' }}
-        >
-          <MobileWalletBridge />
-          <PrivyBridgeComponent />
-          {children}
-        </MobileWalletProvider>
-      );
-    } catch {
-      // Fallback to cross-platform Privy / Embedded wallet runtime if MWA native bindings are absent
-    }
-  }
-
-  // Cross-Platform Privy Runtime (iOS, Android, Web, Expo Go)
+  // Cross-Platform Universal Privy Runtime (iOS, Android, Web, Expo Go)
   return (
     <>
       <PrivyBridgeComponent />
@@ -103,3 +53,4 @@ export function WalletRuntimeProvider({ children }: WalletRuntimeProviderProps) 
     </>
   );
 }
+

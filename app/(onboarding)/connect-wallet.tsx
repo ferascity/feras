@@ -16,7 +16,6 @@ import { Card } from '@/components/ui/Card';
 import { AppleColors } from '@/theme/colors';
 import { Typography } from '@/theme/typography';
 import { Radii, Spacing } from '@/theme/spacing';
-import { isMobileWalletRuntime } from '@/services/wallet';
 import { WalletName } from '@/services/wallet/IWalletService';
 
 interface ProviderOption {
@@ -54,15 +53,6 @@ const WALLET_PROVIDERS: ProviderOption[] = [
     color: AppleColors.brandCyan,
     desc: 'Passwordless sign-in with your email address.',
   },
-  {
-    id: 'MWA',
-    name: 'External Phantom / Solflare',
-    icon: 'wallet-outline',
-    color: AppleColors.systemPurple,
-    desc: isMobileWalletRuntime
-      ? 'Connect external Solana wallet via Mobile Wallet Adapter'
-      : 'Requires Android build (Phantom / Solflare)',
-  },
 ];
 
 export default function ConnectWalletModal() {
@@ -71,14 +61,6 @@ export default function ConnectWalletModal() {
   const [connectingProvider, setConnectingProvider] = useState<string | null>(null);
 
   const handleConnect = async (provider: ProviderOption) => {
-    if (provider.id === 'MWA' && !isMobileWalletRuntime) {
-      useFerasStore.getState().showToast({
-        type: 'info',
-        title: 'Android Build Required',
-        message: 'External Mobile Wallet Adapter requires an Android development build. Try Google or Apple sign-in instead.',
-      });
-      return;
-    }
 
     if (Platform.OS !== 'web') {
       try {

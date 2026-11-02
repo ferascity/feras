@@ -125,7 +125,7 @@ export const useFerasStore = create<FerasStore>((set, get) => ({
     get().showToast({
       type: 'success',
       title: 'Wallet Connected',
-      message: `${name || 'MWA'} connected: ${state.address}`,
+      message: `${name || 'Wallet'} connected: ${state.address}`,
     });
   },
 
