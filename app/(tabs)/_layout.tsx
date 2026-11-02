@@ -38,11 +38,11 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Arena',
+          title: 'Home',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? 'game-controller' : 'game-controller-outline'}
-              size={22}
+              name={focused ? 'home' : 'home-outline'}
+              size={21}
               color={color}
             />
           ),
@@ -52,7 +52,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="arena"
         options={{
-          title: 'Leaderboard',
+          title: 'Rankings',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'trophy' : 'trophy-outline'}
@@ -66,7 +66,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="my-agents"
         options={{
-          title: 'My Agents',
+          title: 'Agents',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'hardware-chip' : 'hardware-chip-outline'}
@@ -80,11 +80,11 @@ export default function TabLayout() {
       <Tabs.Screen
         name="activity"
         options={{
-          title: 'Activity',
+          title: 'Analytics',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? 'receipt' : 'receipt-outline'}
-              size={21}
+              name={focused ? 'stats-chart' : 'stats-chart-outline'}
+              size={20}
               color={color}
             />
           ),
@@ -97,8 +97,8 @@ export default function TabLayout() {
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? 'person-circle' : 'person-circle-outline'}
-              size={22}
+              name={focused ? 'person' : 'person-outline'}
+              size={20}
               color={color}
             />
           ),

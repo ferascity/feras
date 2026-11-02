@@ -9,12 +9,13 @@ import {
   RefreshControl,
   SafeAreaView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { getAllMatches } from '@/services/api/matches';
-import { Match } from '@/types/match';
 import { Card } from '@/components/ui/Card';
 import { Tag } from '@/components/ui/Tag';
 import { Button } from '@/components/ui/Button';
@@ -25,14 +26,21 @@ import { useFerasStore } from '@/store/useFerasStore';
 import { AppleColors } from '@/theme/colors';
 import { Typography } from '@/theme/typography';
 import { Radii, Spacing } from '@/theme/spacing';
+import { claimDevnetFaucetSol } from '@/services/solana/swapService';
 
 const CATEGORIES = ['ALL', 'CHAMPIONSHIP', 'GRAND_PRIX', 'HIGH_STAKES'] as const;
 
 export default function HomeScreen() {
   const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [showBalance, setShowBalance] = useState<boolean>(true);
+  const [isClaimingFaucet, setIsClaimingFaucet] = useState<boolean>(false);
+
   const openPositionSheet = useFerasStore((state) => state.openPositionSheet);
+  const openAuthSheet = useFerasStore((state) => state.openAuthSheet);
   const wallet = useFerasStore((state) => state.wallet);
+  const refreshWallet = useFerasStore((state) => state.refreshWallet);
+  const showToast = useFerasStore((state) => state.showToast);
 
   const { data: matches, isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: ['matches'],
@@ -48,6 +56,61 @@ export default function HomeScreen() {
   const upcomingMatches = filteredMatches.filter((m) => m.status === 'UPCOMING');
   const heroMatch = liveMatches[0] || matches?.[0];
 
+  const handleClaimFaucet = async () => {
+    if (!wallet.isConnected) {
+      openAuthSheet();
+      return;
+    }
+
+    if (Platform.OS !== 'web') {
+      try {
+        Haptics.selectionAsync();
+      } catch {}
+    }
+
+    setIsClaimingFaucet(true);
+    try {
+      if (wallet.address) {
+        await claimDevnetFaucetSol(wallet.address);
+        await refreshWallet();
+        showToast({
+          type: 'success',
+          title: 'Faucet Claimed',
+          message: '+1.00 Devnet SOL credited to your wallet.',
+        });
+      }
+    } catch {
+      showToast({
+        type: 'error',
+        title: 'Faucet Error',
+        message: 'Could not claim Devnet SOL. Please try again.',
+      });
+    } finally {
+      setIsClaimingFaucet(false);
+    }
+  };
+
+  const handlePlusAction = () => {
+    if (Platform.OS !== 'web') {
+      try {
+        Haptics.selectionAsync();
+      } catch {}
+    }
+    if (!wallet.isConnected) {
+      openAuthSheet();
+      return;
+    }
+    if (heroMatch) {
+      openPositionSheet({
+        match: heroMatch,
+        agentId: heroMatch.whiteAgent.id,
+        agentName: heroMatch.whiteAgent.name,
+        outcome: 'WHITE',
+        estimatedMultiplier: heroMatch.marketEstimates.whiteMultiplier,
+      });
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
@@ -57,304 +120,428 @@ export default function HomeScreen() {
           <RefreshControl
             refreshing={isRefetching}
             onRefresh={refetch}
-            tintColor={AppleColors.systemBlue}
+            tintColor={AppleColors.brandEmerald}
           />
         }
       >
-        {/* iOS Minimalist Header with Logo & Wallet Status */}
-        <View style={styles.headerRow}>
-          <View style={styles.headerLeft}>
-            <View style={styles.headerLogoBox}>
+        {/* Zenvest Minimalist Header: Brand Logo Left, Bell & Profile Right */}
+        <View style={styles.zenHeaderRow}>
+          <View style={styles.zenBrandLeft}>
+            <View style={styles.zenLogoBox}>
               <Image
                 source={require('@/assets/logo.png')}
-                style={styles.headerLogoImg}
+                style={styles.zenLogoImg}
                 resizeMode="contain"
               />
             </View>
             <View>
-              <View style={styles.brandTitleRow}>
-                <Text style={styles.headerBrandTitle}>FERAS</Text>
-                <View style={styles.devnetPill}>
-                  <View style={styles.devnetDot} />
-                  <Text style={styles.devnetPillText}>DEVNET</Text>
-                </View>
-              </View>
-              <Text style={styles.headerSubtitle}>AUTONOMOUS CHESS ARENA</Text>
+              <Text style={styles.zenBrandTitle}>FERAS</Text>
+              <Text style={styles.zenBrandSub}>AUTONOMOUS CHESS</Text>
             </View>
           </View>
 
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() =>
-              wallet.isConnected
-                ? router.push('/(tabs)/profile')
-                : router.push('/(onboarding)/connect-wallet')
-            }
-            style={[
-              styles.walletPill,
-              wallet.isConnected && styles.walletPillConnected,
-            ]}
-          >
-            <View
-              style={[
-                styles.statusDot,
-                wallet.isConnected && styles.statusDotActive,
-              ]}
-            />
-            <Text style={styles.walletBalanceText}>
+          <View style={styles.zenHeaderRight}>
+            <TouchableOpacity
+              style={styles.zenIconPill}
+              activeOpacity={0.7}
+              onPress={() => router.push('/(tabs)/activity')}
+            >
+              <Ionicons name="notifications-outline" size={18} color={AppleColors.labelPrimary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.zenProfilePill}
+              activeOpacity={0.8}
+              onPress={() => (wallet.isConnected ? router.push('/(tabs)/profile') : openAuthSheet())}
+            >
+              <View style={[styles.zenStatusDot, wallet.isConnected && styles.zenStatusDotActive]} />
+              <Text style={styles.zenProfileText}>
+                {wallet.isConnected ? 'Wallet' : 'Sign In'}
+              </Text>
+              <Ionicons
+                name={wallet.isConnected ? 'checkmark-circle' : 'person-circle-outline'}
+                size={16}
+                color={wallet.isConnected ? AppleColors.brandEmerald : AppleColors.labelSecondary}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Welcome Greeting */}
+        <View style={styles.greetingSection}>
+          <Text style={styles.greetingSub}>Your Autonomous Arena Overview</Text>
+          <Text style={styles.greetingTitle}>Welcome to Feras</Text>
+        </View>
+
+        {/* Zenvest Hero Frosted Glass Balance Card */}
+        <View style={styles.zenCard}>
+          {/* Subtle Ambient Color Glow Wave */}
+          <View style={styles.zenCardGlowWave} pointerEvents="none" />
+
+          {/* Card Top: Currency Badge + Eye Toggle */}
+          <View style={styles.zenCardTop}>
+            <View style={styles.zenCurrencyBadge}>
+              <View style={styles.solanaMintDot} />
+              <Text style={styles.zenCurrencyText}>DEVNET USDC</Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => setShowBalance(!showBalance)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={styles.zenEyeBtn}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={showBalance ? 'eye-outline' : 'eye-off-outline'}
+                size={18}
+                color={AppleColors.labelSecondary}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Card Middle: Balance */}
+          <View style={styles.zenBalanceContainer}>
+            <Text style={styles.zenBalanceLabel}>Your balance</Text>
+            <View style={styles.zenBalanceRow}>
+              <Text style={styles.zenBalanceCurrency}>$</Text>
+              <Text style={styles.zenBalanceValue}>
+                {wallet.isConnected
+                  ? showBalance
+                    ? wallet.usdcBalance.toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })
+                    : '••••••••'
+                  : '0.00'}
+              </Text>
+            </View>
+
+            <Text style={styles.zenSubBalance}>
               {wallet.isConnected
-                ? `${wallet.usdcBalance.toFixed(0)} USDC`
-                : 'Sign In'}
+                ? showBalance
+                  ? `≈ ${wallet.solBalance.toFixed(3)} SOL`
+                  : '••••'
+                : 'Connect with Google for instant Devnet SOL & USDC'}
             </Text>
-            <Ionicons
-              name={wallet.isConnected ? 'chevron-forward' : 'arrow-forward'}
-              size={12}
-              color={AppleColors.labelSecondary}
-              style={{ marginLeft: 3 }}
-            />
+          </View>
+
+          {/* Card Bottom: Masked Address / Cluster */}
+          <View style={styles.zenCardFooter}>
+            <View>
+              <Text style={styles.zenFooterLabel}>Account Number</Text>
+              <Text style={styles.zenFooterVal}>
+                {wallet.isConnected && wallet.address
+                  ? `•••• ${wallet.address.slice(-4)}`
+                  : '•••• GUEST'}
+              </Text>
+            </View>
+
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={styles.zenFooterLabel}>Network</Text>
+              <Text style={[styles.zenFooterVal, { color: AppleColors.brandEmerald }]}>
+                Solana Devnet
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Zenvest Action Pill Bar: Send / Faucet, Swap, Positions, Floating + Button */}
+        <View style={styles.zenActionBar}>
+          <TouchableOpacity
+            style={styles.zenActionPill}
+            onPress={handleClaimFaucet}
+            activeOpacity={0.8}
+            disabled={isClaimingFaucet}
+          >
+            {isClaimingFaucet ? (
+              <ActivityIndicator size="small" color={AppleColors.brandEmerald} />
+            ) : (
+              <>
+                <Text style={styles.zenActionPillText}>Faucet 🌢</Text>
+                <Ionicons name="arrow-up-outline" size={13} color={AppleColors.labelPrimary} />
+              </>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.zenActionPill}
+            onPress={() => {
+              if (!wallet.isConnected) {
+                openAuthSheet();
+              } else if (heroMatch) {
+                openPositionSheet({
+                  match: heroMatch,
+                  agentId: heroMatch.whiteAgent.id,
+                  agentName: heroMatch.whiteAgent.name,
+                  outcome: 'WHITE',
+                  estimatedMultiplier: heroMatch.marketEstimates.whiteMultiplier,
+                });
+              }
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.zenActionPillText}>Auto-Swap ⇄</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.zenActionPill}
+            onPress={() => router.push('/(tabs)/activity')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.zenActionPillText}>Positions ☵</Text>
+          </TouchableOpacity>
+
+          {/* Floating High-Contrast Circular Action Button */}
+          <TouchableOpacity
+            style={styles.zenPlusButton}
+            onPress={handlePlusAction}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="add" size={22} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
 
-        {/* Category Filter Chips */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoryScroll}
-          contentContainerStyle={styles.categoryContainer}
-        >
-          {CATEGORIES.map((cat) => {
-            const isSelected = selectedCategory === cat;
-            return (
-              <TouchableOpacity
-                key={cat}
-                onPress={() => setSelectedCategory(cat)}
-                style={[
-                  styles.categoryChip,
-                  isSelected && styles.categoryChipActive,
-                ]}
-              >
-                <Text
+        {/* Zenvest Floating Rounded Bottom Container: Live Autonomous Matches */}
+        <View style={styles.zenSheetContainer}>
+          <View style={styles.zenSheetHeader}>
+            <View>
+              <Text style={styles.zenSheetTitle}>Live Autonomous Matches</Text>
+              <Text style={styles.zenSheetSubtitle}>Verifiable on-chain prediction pools</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.zenSearchIconBtn}
+              onPress={() => router.push('/(tabs)/arena')}
+            >
+              <Ionicons name="search" size={18} color={AppleColors.labelSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Category Filter Chips */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.categoryScroll}
+            contentContainerStyle={styles.categoryContainer}
+          >
+            {CATEGORIES.map((cat) => {
+              const isSelected = selectedCategory === cat;
+              return (
+                <TouchableOpacity
+                  key={cat}
+                  onPress={() => setSelectedCategory(cat)}
                   style={[
-                    styles.categoryText,
-                    isSelected && styles.categoryTextActive,
+                    styles.categoryChip,
+                    isSelected && styles.categoryChipActive,
                   ]}
                 >
-                  {cat.replace('_', ' ')}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+                  <Text
+                    style={[
+                      styles.categoryText,
+                      isSelected && styles.categoryTextActive,
+                    ]}
+                  >
+                    {cat.replace('_', ' ')}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
 
-        {/* Loading State */}
-        {isLoading && (
-          <View style={styles.loadingContainer}>
-            <Skeleton height={240} borderRadius={Radii.lg} style={{ marginBottom: Spacing.md }} />
-            <Skeleton height={140} borderRadius={Radii.lg} style={{ marginBottom: Spacing.md }} />
-            <Skeleton height={140} borderRadius={Radii.lg} />
-          </View>
-        )}
-
-        {/* Error State */}
-        {error && (
-          <EmptyState
-            icon="alert-circle-outline"
-            title="Unable to Load Matches"
-            description="Could not connect to Arena matchmaking service."
-            actionTitle="Try Again"
-            onAction={refetch}
-          />
-        )}
-
-        {/* Hero Featured Live Match */}
-        {!isLoading && heroMatch && (
-          <Card
-            style={styles.heroCard}
-            onPress={() => router.push(`/match/${heroMatch.id}`)}
-          >
-            {/* Live Header Tag */}
-            <View style={styles.heroHeader}>
-              <Tag
-                label={
-                  heroMatch.status === 'LIVE'
-                    ? `LIVE · PLY ${heroMatch.currentPly}`
-                    : heroMatch.status
-                }
-                type={heroMatch.status === 'LIVE' ? 'live' : 'upcoming'}
-                showDot={heroMatch.status === 'LIVE'}
-              />
-              <View style={styles.viewerBadge}>
-                <Ionicons name="eye" size={13} color={AppleColors.labelSecondary} />
-                <Text style={styles.viewerText}>
-                  {(heroMatch.viewerCount ?? 0).toLocaleString()} watching
-                </Text>
-              </View>
+          {/* Loading State */}
+          {isLoading && (
+            <View style={styles.loadingContainer}>
+              <Skeleton height={200} borderRadius={Radii.lg} style={{ marginBottom: Spacing.md }} />
+              <Skeleton height={120} borderRadius={Radii.lg} style={{ marginBottom: Spacing.md }} />
             </View>
+          )}
 
-            <Text style={styles.heroTitle}>{heroMatch.title}</Text>
-
-            {/* Matchup row */}
-            <View style={styles.matchupRow}>
-              {/* White Agent */}
-              <View style={styles.agentCol}>
-                <Image
-                  source={{ uri: heroMatch.whiteAgent.avatarUrl }}
-                  style={styles.agentAvatar}
-                />
-                <Text style={styles.agentName} numberOfLines={1}>
-                  {heroMatch.whiteAgent.name}
-                </Text>
-                <Text style={styles.agentSub}>
-                  ♔ White · {heroMatch.whiteAgent.stats.elo}
-                </Text>
-              </View>
-
-              {/* VS Pill */}
-              <View style={styles.vsBadge}>
-                <Text style={styles.vsText}>VS</Text>
-                <Text style={styles.timeControlText}>{heroMatch.timeControl}</Text>
-              </View>
-
-              {/* Black Agent */}
-              <View style={[styles.agentCol, { alignItems: 'flex-end' }]}>
-                <Image
-                  source={{ uri: heroMatch.blackAgent.avatarUrl }}
-                  style={styles.agentAvatar}
-                />
-                <Text style={styles.agentName} numberOfLines={1}>
-                  {heroMatch.blackAgent.name}
-                </Text>
-                <Text style={styles.agentSub}>
-                  ♚ Black · {heroMatch.blackAgent.stats.elo}
-                </Text>
-              </View>
-            </View>
-
-            {/* Live market estimates */}
-            <View style={styles.oddsContainer}>
-              <MarketQuote
-                label={heroMatch.whiteAgent.name.split('-')[0]}
-                estimatedMultiplier={heroMatch.marketEstimates.whiteMultiplier}
-                onPress={() =>
-                  openPositionSheet({
-                    match: heroMatch,
-                    agentId: heroMatch.whiteAgent.id,
-                    agentName: heroMatch.whiteAgent.name,
-                    outcome: 'WHITE',
-                    estimatedMultiplier: heroMatch.marketEstimates.whiteMultiplier,
-                  })
-                }
-                style={styles.oddsBox}
-              />
-              <MarketQuote
-                label="DRAW"
-                estimatedMultiplier={heroMatch.marketEstimates.drawMultiplier}
-                onPress={() =>
-                  openPositionSheet({
-                    match: heroMatch,
-                    agentId: 'draw',
-                    agentName: 'Draw Outcome',
-                    outcome: 'DRAW',
-                    estimatedMultiplier: heroMatch.marketEstimates.drawMultiplier,
-                  })
-                }
-                style={styles.oddsBox}
-              />
-              <MarketQuote
-                label={heroMatch.blackAgent.name.split('-')[0]}
-                estimatedMultiplier={heroMatch.marketEstimates.blackMultiplier}
-                onPress={() =>
-                  openPositionSheet({
-                    match: heroMatch,
-                    agentId: heroMatch.blackAgent.id,
-                    agentName: heroMatch.blackAgent.name,
-                    outcome: 'BLACK',
-                    estimatedMultiplier: heroMatch.marketEstimates.blackMultiplier,
-                  })
-                }
-                style={styles.oddsBox}
-              />
-            </View>
-
-            {/* Action CTA */}
-            <Button
-              title="Watch Replay & Spectate"
-              onPress={() => router.push(`/match/${heroMatch.id}`)}
-              variant="tinted"
-              size="md"
-              style={styles.heroCta}
+          {/* Error State */}
+          {error && (
+            <EmptyState
+              icon="alert-circle-outline"
+              title="Unable to Load Matches"
+              description="Could not connect to Arena matchmaking service."
+              actionTitle="Try Again"
+              onAction={refetch}
             />
-          </Card>
-        )}
+          )}
 
-        {/* Section: Upcoming Matchups */}
-        {!isLoading && upcomingMatches.length > 0 && (
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Upcoming Matches</Text>
-            <Text style={styles.sectionBadge}>{upcomingMatches.length}</Text>
-          </View>
-        )}
-
-        {!isLoading &&
-          upcomingMatches.map((m) => (
+          {/* Featured Live Match Card */}
+          {!isLoading && heroMatch && (
             <Card
-              key={m.id}
-              style={styles.upcomingCard}
-              onPress={() => router.push(`/match/${m.id}`)}
+              style={styles.heroCard}
+              onPress={() => router.push(`/match/${heroMatch.id}`)}
             >
-              <View style={styles.upcomingHeader}>
-                <Tag label="UPCOMING" type="upcoming" />
-                <Text style={styles.poolText}>
-                  {(m.poolVolumeUsdc || 0).toLocaleString()} USDC Pool
-                </Text>
+              <View style={styles.heroHeader}>
+                <Tag
+                  label={
+                    heroMatch.status === 'LIVE'
+                      ? `LIVE · PLY ${heroMatch.currentPly}`
+                      : heroMatch.status
+                  }
+                  type={heroMatch.status === 'LIVE' ? 'live' : 'upcoming'}
+                  showDot={heroMatch.status === 'LIVE'}
+                />
+                <View style={styles.viewerBadge}>
+                  <Ionicons name="eye" size={13} color={AppleColors.labelSecondary} />
+                  <Text style={styles.viewerText}>
+                    {(heroMatch.viewerCount ?? 0).toLocaleString()} watching
+                  </Text>
+                </View>
               </View>
 
-              <Text style={styles.upcomingTitle}>{m.title}</Text>
+              <Text style={styles.heroTitle}>{heroMatch.title}</Text>
 
-              <View style={styles.upcomingMatchup}>
-                <Text style={styles.upcomingAgentText}>
-                  {m.whiteAgent.name} ({m.whiteAgent.stats.elo})
-                </Text>
-                <Text style={styles.upcomingVs}>vs</Text>
-                <Text style={styles.upcomingAgentText}>
-                  {m.blackAgent.name} ({m.blackAgent.stats.elo})
-                </Text>
+              {/* Matchup row */}
+              <View style={styles.matchupRow}>
+                <View style={styles.agentCol}>
+                  <Image
+                    source={{ uri: heroMatch.whiteAgent.avatarUrl }}
+                    style={styles.agentAvatar}
+                  />
+                  <Text style={styles.agentName} numberOfLines={1}>
+                    {heroMatch.whiteAgent.name}
+                  </Text>
+                  <Text style={styles.agentSub}>
+                    ♔ White · {heroMatch.whiteAgent.stats.elo}
+                  </Text>
+                </View>
+
+                <View style={styles.vsBadge}>
+                  <Text style={styles.vsText}>VS</Text>
+                  <Text style={styles.timeControlText}>{heroMatch.timeControl}</Text>
+                </View>
+
+                <View style={[styles.agentCol, { alignItems: 'flex-end' }]}>
+                  <Image
+                    source={{ uri: heroMatch.blackAgent.avatarUrl }}
+                    style={styles.agentAvatar}
+                  />
+                  <Text style={styles.agentName} numberOfLines={1}>
+                    {heroMatch.blackAgent.name}
+                  </Text>
+                  <Text style={styles.agentSub}>
+                    ♚ Black · {heroMatch.blackAgent.stats.elo}
+                  </Text>
+                </View>
               </View>
 
-              <View style={styles.upcomingFooter}>
-                <Text style={styles.timeText}>
-                  Starts {new Date(m.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </Text>
-                <Button
-                  title="View Market"
-                  onPress={() => router.push(`/match/${m.id}`)}
-                  variant="secondary"
-                  size="sm"
+              {/* 1-Tap Odds Quotes */}
+              <View style={styles.oddsContainer}>
+                <MarketQuote
+                  label={heroMatch.whiteAgent.name.split('-')[0]}
+                  estimatedMultiplier={heroMatch.marketEstimates.whiteMultiplier}
+                  onPress={() => {
+                    if (!wallet.isConnected) {
+                      openAuthSheet();
+                      return;
+                    }
+                    openPositionSheet({
+                      match: heroMatch,
+                      agentId: heroMatch.whiteAgent.id,
+                      agentName: heroMatch.whiteAgent.name,
+                      outcome: 'WHITE',
+                      estimatedMultiplier: heroMatch.marketEstimates.whiteMultiplier,
+                    });
+                  }}
+                  style={styles.oddsBox}
+                />
+                <MarketQuote
+                  label="DRAW"
+                  estimatedMultiplier={heroMatch.marketEstimates.drawMultiplier}
+                  onPress={() => {
+                    if (!wallet.isConnected) {
+                      openAuthSheet();
+                      return;
+                    }
+                    openPositionSheet({
+                      match: heroMatch,
+                      agentId: 'draw',
+                      agentName: 'Draw Outcome',
+                      outcome: 'DRAW',
+                      estimatedMultiplier: heroMatch.marketEstimates.drawMultiplier,
+                    });
+                  }}
+                  style={styles.oddsBox}
+                />
+                <MarketQuote
+                  label={heroMatch.blackAgent.name.split('-')[0]}
+                  estimatedMultiplier={heroMatch.marketEstimates.blackMultiplier}
+                  onPress={() => {
+                    if (!wallet.isConnected) {
+                      openAuthSheet();
+                      return;
+                    }
+                    openPositionSheet({
+                      match: heroMatch,
+                      agentId: heroMatch.blackAgent.id,
+                      agentName: heroMatch.blackAgent.name,
+                      outcome: 'BLACK',
+                      estimatedMultiplier: heroMatch.marketEstimates.blackMultiplier,
+                    });
+                  }}
+                  style={styles.oddsBox}
                 />
               </View>
-            </Card>
-          ))}
 
-        {/* Arena Metrics Card */}
-        <Card style={styles.statsCard}>
-          <Text style={styles.statsCardTitle}>Arena 24h Activity</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCol}>
-              <Text style={styles.statVal}>1.35M USDC</Text>
-              <Text style={styles.statLabel}>Devnet Volume</Text>
+              <Button
+                title="Spectate & Replay"
+                onPress={() => router.push(`/match/${heroMatch.id}`)}
+                variant="tinted"
+                size="md"
+                style={styles.heroCta}
+              />
+            </Card>
+          )}
+
+          {/* Upcoming Matches */}
+          {!isLoading && upcomingMatches.length > 0 && (
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Upcoming Matches</Text>
+              <Text style={styles.sectionBadge}>{upcomingMatches.length}</Text>
             </View>
-            <View style={styles.statCol}>
-              <Text style={styles.statVal}>42</Text>
-              <Text style={styles.statLabel}>Active Agents</Text>
-            </View>
-            <View style={styles.statCol}>
-              <Text style={[styles.statVal, { color: AppleColors.systemGreen }]}>
-                99.4%
-              </Text>
-              <Text style={styles.statLabel}>Avg Accuracy</Text>
-            </View>
-          </View>
-        </Card>
+          )}
+
+          {!isLoading &&
+            upcomingMatches.map((m) => (
+              <Card
+                key={m.id}
+                style={styles.upcomingCard}
+                onPress={() => router.push(`/match/${m.id}`)}
+              >
+                <View style={styles.upcomingHeader}>
+                  <Tag label="UPCOMING" type="upcoming" />
+                  <Text style={styles.poolText}>
+                    {(m.poolVolumeUsdc || 0).toLocaleString()} USDC Pool
+                  </Text>
+                </View>
+
+                <Text style={styles.upcomingTitle}>{m.title}</Text>
+
+                <View style={styles.upcomingMatchup}>
+                  <Text style={styles.upcomingAgentText}>
+                    {m.whiteAgent.name} ({m.whiteAgent.stats.elo})
+                  </Text>
+                  <Text style={styles.upcomingVs}>vs</Text>
+                  <Text style={styles.upcomingAgentText}>
+                    {m.blackAgent.name} ({m.blackAgent.stats.elo})
+                  </Text>
+                </View>
+
+                <View style={styles.upcomingFooter}>
+                  <Text style={styles.timeText}>
+                    Starts {new Date(m.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                  <Button
+                    title="View Market"
+                    onPress={() => router.push(`/match/${m.id}`)}
+                    variant="secondary"
+                    size="sm"
+                  />
+                </View>
+              </Card>
+            ))}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -373,100 +560,269 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? 32 : Spacing.sm,
     paddingBottom: Spacing.xxl,
   },
-  headerRow: {
+  zenHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: Spacing.md,
   },
-  headerLeft: {
+  zenBrandLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
-  headerLogoBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: AppleColors.secondaryBackground,
+  zenLogoBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: AppleColors.cardElevated,
     borderWidth: 1,
-    borderColor: AppleColors.cardBorder,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerLogoImg: {
+  zenLogoImg: {
     width: 26,
     height: 26,
   },
-  brandTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  headerBrandTitle: {
+  zenBrandTitle: {
     ...Typography.title3,
     color: AppleColors.labelPrimary,
     fontWeight: '800',
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
   },
-  devnetPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: Radii.pill,
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.25)',
-  },
-  devnetDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: AppleColors.brandEmerald,
-    marginRight: 4,
-  },
-  devnetPillText: {
+  zenBrandSub: {
     fontSize: 9,
-    fontWeight: '700',
     color: AppleColors.brandEmerald,
-    letterSpacing: 0.6,
-  },
-  headerSubtitle: {
-    fontSize: 9,
-    color: AppleColors.labelTertiary,
     fontWeight: '700',
     letterSpacing: 0.8,
     marginTop: 1,
   },
-  walletPill: {
+  zenHeaderRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: AppleColors.secondaryBackground,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    gap: 8,
+  },
+  zenIconPill: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: AppleColors.cardElevated,
+    borderWidth: 1,
+    borderColor: AppleColors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  zenProfilePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: AppleColors.cardElevated,
+    borderWidth: 1,
+    borderColor: AppleColors.border,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: Radii.pill,
+    gap: 6,
+  },
+  zenStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: AppleColors.labelQuaternary,
+  },
+  zenStatusDotActive: {
+    backgroundColor: AppleColors.brandEmerald,
+  },
+  zenProfileText: {
+    ...Typography.caption1,
+    color: AppleColors.labelPrimary,
+    fontWeight: '700',
+  },
+  greetingSection: {
+    marginBottom: Spacing.md,
+  },
+  greetingSub: {
+    ...Typography.caption1,
+    color: AppleColors.labelSecondary,
+    fontWeight: '500',
+  },
+  greetingTitle: {
+    ...Typography.title1,
+    color: AppleColors.labelPrimary,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    marginTop: 2,
+  },
+  zenCard: {
+    position: 'relative',
+    backgroundColor: AppleColors.card,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    padding: Spacing.lg,
+    overflow: 'hidden',
+    marginBottom: Spacing.md,
+  },
+  zenCardGlowWave: {
+    position: 'absolute',
+    bottom: -40,
+    right: -40,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+  },
+  zenCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
+  },
+  zenCurrencyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
     borderRadius: Radii.pill,
     borderWidth: 1,
-    borderColor: AppleColors.cardBorder,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    gap: 6,
   },
-  walletPillConnected: {
-    borderColor: 'rgba(16, 185, 129, 0.35)',
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
-  },
-  statusDot: {
+  solanaMintDot: {
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: AppleColors.labelQuaternary,
-    marginRight: 6,
+    backgroundColor: AppleColors.brandCyan,
   },
-  statusDotActive: {
-    backgroundColor: AppleColors.brandEmerald,
-  },
-  walletBalanceText: {
-    ...Typography.caption1,
-    fontWeight: '600',
+  zenCurrencyText: {
+    fontSize: 10,
+    fontWeight: '700',
     color: AppleColors.labelPrimary,
+    letterSpacing: 0.5,
+  },
+  zenEyeBtn: {
+    padding: 4,
+  },
+  zenBalanceContainer: {
+    marginVertical: Spacing.xs,
+  },
+  zenBalanceLabel: {
+    ...Typography.caption2,
+    color: AppleColors.labelSecondary,
+    fontWeight: '500',
+  },
+  zenBalanceRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 4,
+  },
+  zenBalanceCurrency: {
+    fontSize: 22,
+    color: AppleColors.labelSecondary,
+    fontWeight: '600',
+    marginTop: 2,
+    marginRight: 4,
+  },
+  zenBalanceValue: {
+    fontSize: 34,
+    fontWeight: '800',
+    color: AppleColors.labelPrimary,
+    letterSpacing: -0.8,
+  },
+  zenSubBalance: {
+    ...Typography.footnote,
+    color: AppleColors.brandEmerald,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  zenCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Spacing.lg,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  zenFooterLabel: {
+    fontSize: 10,
+    color: AppleColors.labelTertiary,
+    fontWeight: '500',
+  },
+  zenFooterVal: {
+    ...Typography.footnote,
+    color: AppleColors.labelPrimary,
+    fontWeight: '700',
+    marginTop: 2,
+    letterSpacing: 0.5,
+  },
+  zenActionBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: Spacing.lg,
+  },
+  zenActionPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: AppleColors.cardElevated,
+    borderRadius: Radii.pill,
+    borderWidth: 1,
+    borderColor: AppleColors.border,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    gap: 4,
+  },
+  zenActionPillText: {
+    ...Typography.caption1,
+    color: AppleColors.labelPrimary,
+    fontWeight: '700',
+  },
+  zenPlusButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#000000',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  zenSheetContainer: {
+    backgroundColor: AppleColors.secondaryBackground,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: AppleColors.cardBorder,
+    padding: Spacing.md,
+  },
+  zenSheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
+  },
+  zenSheetTitle: {
+    ...Typography.title3,
+    color: AppleColors.labelPrimary,
+    fontWeight: '800',
+  },
+  zenSheetSubtitle: {
+    ...Typography.caption2,
+    color: AppleColors.labelSecondary,
+    marginTop: 1,
+  },
+  zenSearchIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: AppleColors.cardElevated,
+    borderWidth: 1,
+    borderColor: AppleColors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   categoryScroll: {
     marginBottom: Spacing.md,
@@ -477,19 +833,19 @@ const styles = StyleSheet.create({
   categoryChip: {
     paddingVertical: 6,
     paddingHorizontal: Spacing.sm,
-    borderRadius: Radii.sm,
-    backgroundColor: AppleColors.fillSecondary,
+    borderRadius: Radii.pill,
+    backgroundColor: AppleColors.cardElevated,
     marginRight: Spacing.xs,
     borderWidth: 1,
-    borderColor: AppleColors.cardBorder,
+    borderColor: AppleColors.border,
   },
   categoryChipActive: {
-    backgroundColor: AppleColors.systemBlue,
-    borderColor: AppleColors.systemBlue,
+    backgroundColor: AppleColors.brandEmerald,
+    borderColor: AppleColors.brandEmerald,
   },
   categoryText: {
-    ...Typography.caption1,
-    fontWeight: '600',
+    ...Typography.caption2,
+    fontWeight: '700',
     color: AppleColors.labelSecondary,
   },
   categoryTextActive: {
@@ -499,8 +855,12 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
   },
   heroCard: {
-    marginBottom: Spacing.lg,
-    borderColor: 'rgba(10, 132, 255, 0.25)',
+    marginBottom: Spacing.md,
+    backgroundColor: AppleColors.card,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: AppleColors.border,
+    padding: Spacing.md,
   },
   heroHeader: {
     flexDirection: 'row',
@@ -520,14 +880,17 @@ const styles = StyleSheet.create({
   heroTitle: {
     ...Typography.title3,
     color: AppleColors.labelPrimary,
+    fontWeight: '700',
     marginBottom: Spacing.md,
   },
   matchupRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: AppleColors.fillSecondary,
+    backgroundColor: AppleColors.cardElevated,
     borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
     padding: Spacing.md,
     marginBottom: Spacing.md,
   },
@@ -539,10 +902,14 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     marginBottom: 6,
+    backgroundColor: AppleColors.cardElevated,
+    borderWidth: 1,
+    borderColor: AppleColors.border,
   },
   agentName: {
     ...Typography.headline,
     color: AppleColors.labelPrimary,
+    fontWeight: '700',
   },
   agentSub: {
     ...Typography.caption2,
@@ -555,13 +922,14 @@ const styles = StyleSheet.create({
   },
   vsText: {
     ...Typography.caption2,
-    fontWeight: '700',
+    fontWeight: '800',
     color: AppleColors.labelTertiary,
   },
   timeControlText: {
     ...Typography.caption2,
-    color: AppleColors.systemBlue,
+    color: AppleColors.brandCyan,
     marginTop: 2,
+    fontWeight: '600',
   },
   oddsContainer: {
     flexDirection: 'row',
@@ -582,20 +950,26 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xs,
   },
   sectionTitle: {
-    ...Typography.title3,
+    ...Typography.headline,
     color: AppleColors.labelPrimary,
+    fontWeight: '700',
   },
   sectionBadge: {
     ...Typography.caption2,
-    color: AppleColors.labelTertiary,
+    color: AppleColors.brandEmerald,
     marginLeft: 8,
-    backgroundColor: AppleColors.fillSecondary,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: Radii.xs,
+    borderRadius: Radii.pill,
   },
   upcomingCard: {
     marginBottom: Spacing.sm,
+    backgroundColor: AppleColors.card,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: AppleColors.border,
+    padding: Spacing.md,
   },
   upcomingHeader: {
     flexDirection: 'row',
@@ -611,6 +985,7 @@ const styles = StyleSheet.create({
   upcomingTitle: {
     ...Typography.headline,
     color: AppleColors.labelPrimary,
+    fontWeight: '700',
     marginBottom: 6,
   },
   upcomingMatchup: {
@@ -631,39 +1006,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: AppleColors.separator,
+    borderTopWidth: 1,
+    borderTopColor: AppleColors.border,
     paddingTop: Spacing.sm,
   },
   timeText: {
     ...Typography.caption1,
     color: AppleColors.labelTertiary,
-  },
-  statsCard: {
-    marginTop: Spacing.md,
-    backgroundColor: AppleColors.fillSecondary,
-  },
-  statsCardTitle: {
-    ...Typography.subhead,
-    fontWeight: '600',
-    color: AppleColors.labelSecondary,
-    marginBottom: Spacing.sm,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  statCol: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statVal: {
-    ...Typography.title3,
-    color: AppleColors.labelPrimary,
-  },
-  statLabel: {
-    ...Typography.caption2,
-    color: AppleColors.labelTertiary,
-    marginTop: 2,
   },
 });

@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/Button';
 import { AppleColors } from '@/theme/colors';
 import { Typography } from '@/theme/typography';
 import { Radii, Spacing } from '@/theme/spacing';
+import { useFerasStore } from '@/store/useFerasStore';
 
 const SLIDES = [
   {
@@ -145,7 +146,7 @@ export default function WelcomeScreen() {
         <View style={styles.bottomSection}>
           <Button
             title="Sign In with Google or Apple"
-            onPress={() => router.push('/(onboarding)/connect-wallet')}
+            onPress={() => useFerasStore.getState().openAuthSheet()}
             variant="primary"
             size="lg"
             style={styles.primaryBtn}

@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Toast } from '@/components/ui/Toast';
 import { MarketPositionSheet } from '@/components/betting/MarketPositionSheet';
+import { AuthBottomSheet } from '@/components/auth/AuthBottomSheet';
 import { AppleColors } from '@/theme/colors';
 import { useFerasStore } from '@/store/useFerasStore';
 import { WalletRuntimeProvider } from '@/components/wallet/WalletRuntimeProvider';
@@ -96,6 +97,7 @@ export default function RootLayout() {
 
           <Toast />
           <MarketPositionSheet />
+          <AuthBottomSheet />
           </QueryClientProvider>
         </WalletRuntimeProvider>
       </SafeAreaProvider>

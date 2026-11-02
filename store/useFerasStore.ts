@@ -41,6 +41,11 @@ interface FerasStore {
   disconnectWallet: () => Promise<void>;
   refreshWallet: () => Promise<void>;
 
+  // Auth Sheet Modal
+  isAuthSheetOpen: boolean;
+  openAuthSheet: () => void;
+  closeAuthSheet: () => void;
+
   // Market Position Sheet
   isPositionSheetOpen: boolean;
   positionMatch: Match | null;
@@ -143,6 +148,11 @@ export const useFerasStore = create<FerasStore>((set, get) => ({
     const state = await walletService.getState();
     set({ wallet: state });
   },
+
+  // Auth Sheet Modal
+  isAuthSheetOpen: false,
+  openAuthSheet: () => set({ isAuthSheetOpen: true }),
+  closeAuthSheet: () => set({ isAuthSheetOpen: false }),
 
   // Market Position Sheet
   isPositionSheetOpen: false,

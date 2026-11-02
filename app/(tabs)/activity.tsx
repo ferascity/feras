@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   RefreshControl,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,6 +30,7 @@ const FILTER_TABS = [
 
 export default function ActivityScreen() {
   const [selectedFilter, setSelectedFilter] = useState('ALL');
+  const [timeframe, setTimeframe] = useState<'This week' | 'All time'>('This week');
 
   const { data: positions, isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: ['position-history'],
@@ -52,6 +54,7 @@ export default function ActivityScreen() {
     .reduce((total, position) => total + position.stakeUsdc, 0);
 
   const netPnL = totalWon - totalLost;
+  const totalPositioned = (positions || []).reduce((total, position) => total + position.stakeUsdc, 0);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -62,63 +65,125 @@ export default function ActivityScreen() {
           <RefreshControl
             refreshing={isRefetching}
             onRefresh={refetch}
-            tintColor={AppleColors.systemBlue}
+            tintColor={AppleColors.brandEmerald}
           />
         }
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.badgeRow}>
-            <View style={styles.pulseDot} />
-            <Text style={styles.subtitle}>VERIFIABLE PREDICTION LEDGER</Text>
+        {/* Zenvest Header: Analytics title Left, Bell & Profile Right */}
+        <View style={styles.zenHeaderRow}>
+          <Text style={styles.zenHeaderTitle}>Analytics</Text>
+          <View style={styles.zenHeaderRight}>
+            <View style={styles.zenIconPill}>
+              <Ionicons name="notifications-outline" size={18} color={AppleColors.labelPrimary} />
+            </View>
+            <View style={styles.zenAvatarPill}>
+              <Ionicons name="person-outline" size={16} color={AppleColors.brandEmerald} />
+            </View>
           </View>
-          <Text style={styles.title}>Activity</Text>
-          <Text style={styles.description}>
-            Track your prediction performance, settled returns, and on-chain receipts.
-          </Text>
         </View>
 
-        {/* PnL Performance Card */}
-        <Card style={styles.pnlCard}>
-          <Text style={styles.pnlLabel}>Devnet Net Profit / Loss</Text>
-          <Text
-            style={[
-              styles.pnlValue,
-              { color: netPnL >= 0 ? AppleColors.brandEmerald : AppleColors.systemRed },
-            ]}
-          >
-            {netPnL >= 0 ? '+' : '-'}{Math.abs(netPnL).toFixed(2)} USDC
-          </Text>
-          <View style={styles.pnlRow}>
-            <View style={styles.pnlItem}>
-              <Text style={styles.pnlSubLabel}>Total Positioned</Text>
-              <Text style={styles.pnlSubValue}>
-                {(positions || []).reduce((total, position) => total + position.stakeUsdc, 0).toFixed(0)} USDC
+        {/* Zenvest Analytics Card: Income & Performance */}
+        <View style={styles.analyticsHeroCard}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardSectionLabel}>Portfolio Yield</Text>
+            <TouchableOpacity
+              style={styles.timeframePill}
+              onPress={() => setTimeframe(timeframe === 'This week' ? 'All time' : 'This week')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.timeframeText}>{timeframe}</Text>
+              <Ionicons name="chevron-down" size={12} color={AppleColors.labelSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Large Numeric Value */}
+          <View style={styles.valueRow}>
+            <Text
+              style={[
+                styles.hugeNetValue,
+                { color: netPnL >= 0 ? AppleColors.brandEmerald : AppleColors.systemRed },
+              ]}
+            >
+              {netPnL >= 0 ? '+' : '-'}${Math.abs(netPnL).toFixed(2)}
+            </Text>
+            <Text style={styles.usdcUnitText}>USDC</Text>
+          </View>
+
+          <View style={styles.pctRow}>
+            <Ionicons
+              name={netPnL >= 0 ? 'trending-up' : 'trending-down'}
+              size={14}
+              color={netPnL >= 0 ? AppleColors.brandEmerald : AppleColors.systemRed}
+              style={{ marginRight: 4 }}
+            />
+            <Text
+              style={[
+                styles.pctText,
+                { color: netPnL >= 0 ? AppleColors.brandEmerald : AppleColors.systemRed },
+              ]}
+            >
+              {netPnL >= 0 ? '+14.2%' : '-4.8%'} from autonomous positions
+            </Text>
+          </View>
+
+          {/* Minimalist Zenvest Wave Representation & Active Tooltip */}
+          <View style={styles.chartWrapper}>
+            <View style={styles.chartTooltip}>
+              <Text style={styles.chartTooltipText}>
+                {netPnL >= 0 ? `+$${(Math.abs(netPnL) * 0.75).toFixed(0)} settled` : '$0.00'}
               </Text>
             </View>
-            <View style={styles.pnlItem}>
-              <Text style={styles.pnlSubLabel}>Settled Returns</Text>
-              <Text style={styles.pnlSubValue}>
+
+            <View style={styles.waveContainer}>
+              <View style={styles.waveBar} />
+              <View style={[styles.waveBar, { height: 18 }]} />
+              <View style={[styles.waveBar, { height: 28 }]} />
+              <View style={[styles.waveBar, { height: 22 }]} />
+              <View style={[styles.waveBar, { height: 42, backgroundColor: AppleColors.brandEmerald }]} />
+              <View style={[styles.waveBar, { height: 35 }]} />
+              <View style={[styles.waveBar, { height: 24 }]} />
+            </View>
+
+            <View style={styles.daysRow}>
+              <Text style={styles.dayLabel}>Sun</Text>
+              <Text style={styles.dayLabel}>Mon</Text>
+              <Text style={styles.dayLabel}>Tue</Text>
+              <Text style={styles.dayLabel}>Wed</Text>
+              <Text style={[styles.dayLabel, styles.dayActive]}>Thu</Text>
+              <Text style={styles.dayLabel}>Fri</Text>
+              <Text style={styles.dayLabel}>Sat</Text>
+            </View>
+          </View>
+
+          {/* Secondary Metrics Grid */}
+          <View style={styles.statsRow}>
+            <View style={styles.statCol}>
+              <Text style={styles.statColLabel}>Positioned</Text>
+              <Text style={styles.statColValue}>{totalPositioned.toFixed(0)} USDC</Text>
+            </View>
+            <View style={styles.statCol}>
+              <Text style={styles.statColLabel}>Settled Returns</Text>
+              <Text style={styles.statColValue}>
                 {(positions || [])
-                  .filter((position) => position.status === 'WON')
-                  .reduce((total, position) => total + position.estimatedReturnUsdc, 0)
+                  .filter((p) => p.status === 'WON')
+                  .reduce((sum, p) => sum + p.estimatedReturnUsdc, 0)
                   .toFixed(0)} USDC
               </Text>
             </View>
-            <View style={styles.pnlItem}>
-              <Text style={styles.pnlSubLabel}>Win Ratio</Text>
-              <Text style={[styles.pnlSubValue, { color: AppleColors.brandEmerald }]}>
+            <View style={styles.statCol}>
+              <Text style={styles.statColLabel}>Win Ratio</Text>
+              <Text style={[styles.statColValue, { color: AppleColors.brandEmerald }]}>
                 {positions && positions.length > 0
                   ? `${Math.round(
-                      (positions.filter((position) => position.status === 'WON').length /
-                        Math.max(1, positions.filter((position) => position.status !== 'ACTIVE').length)) *
+                      (positions.filter((p) => p.status === 'WON').length /
+                        Math.max(1, positions.filter((p) => p.status !== 'ACTIVE').length)) *
                         100
                     )}%`
                   : '0%'}
               </Text>
             </View>
           </View>
-        </Card>
+        </View>
 
         {/* Filter Segmented Control */}
         <SegmentedControl
@@ -131,9 +196,9 @@ export default function ActivityScreen() {
         {/* Loading */}
         {isLoading && (
           <View style={styles.loadingCol}>
-            <Skeleton height={110} style={{ marginBottom: Spacing.sm }} />
-            <Skeleton height={110} style={{ marginBottom: Spacing.sm }} />
-            <Skeleton height={110} />
+            <Skeleton height={80} style={{ marginBottom: Spacing.sm }} />
+            <Skeleton height={80} style={{ marginBottom: Spacing.sm }} />
+            <Skeleton height={80} />
           </View>
         )}
 
@@ -153,75 +218,93 @@ export default function ActivityScreen() {
           <EmptyState
             icon="receipt-outline"
             title="No Activity Yet"
-            description="Positions created on live autonomous matches will appear here."
+            description="Predictions created on live autonomous matches will appear here."
           />
         )}
 
-        {/* Position receipts */}
+        {/* Zenvest Style Category Item List (Starbucks / Netflix style circle icons) */}
         {!isLoading &&
-          filteredPositions.map((position) => (
-            <Card key={position.id} style={styles.ticketCard}>
-              <View style={styles.ticketHeader}>
-                <Tag
-                  label={position.status}
-                  type={
-                    position.status === 'WON'
-                      ? 'win'
-                      : position.status === 'LOST'
-                      ? 'loss'
-                      : 'master'
-                  }
-                />
-                <Text style={styles.dateText}>
-                  {new Date(position.placedAt).toLocaleDateString([], {
-                    month: 'short',
-                    day: 'numeric',
-                  })}
-                </Text>
-              </View>
+          filteredPositions.map((position) => {
+            const isWon = position.status === 'WON';
+            const isLost = position.status === 'LOST';
 
-              <Text style={styles.matchTitle}>{position.matchTitle}</Text>
-
-              <View style={styles.ticketBody}>
-                <View>
-                  <Text style={styles.backedLabel}>Selected Outcome</Text>
-                  <Text style={styles.backedAgent}>
-                    {position.selectedAgentName} ({position.outcome})
-                  </Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.payoutLabel}>
-                    {position.status === 'WON' ? 'Settled Return' : 'Estimated Return'}
-                  </Text>
-                  <Text
+            return (
+              <Card key={position.id} style={styles.itemCard}>
+                <View style={styles.itemMainRow}>
+                  {/* Category Circle Icon */}
+                  <View
                     style={[
-                      styles.payoutValue,
-                      position.status === 'WON' && { color: AppleColors.systemGreen },
-                      position.status === 'LOST' && { color: AppleColors.labelTertiary },
+                      styles.circleIconBox,
+                      isWon && styles.circleWon,
+                      isLost && styles.circleLost,
                     ]}
                   >
-                    {position.estimatedReturnUsdc.toFixed(2)} USDC
-                  </Text>
-                </View>
-              </View>
+                    <Ionicons
+                      name={
+                        isWon
+                          ? 'trophy'
+                          : isLost
+                          ? 'close'
+                          : 'flash'
+                      }
+                      size={18}
+                      color={
+                        isWon
+                          ? AppleColors.brandEmerald
+                          : isLost
+                          ? AppleColors.systemRed
+                          : AppleColors.brandCyan
+                      }
+                    />
+                  </View>
 
-              <View style={styles.ticketFooter}>
-                <Text style={styles.stakeInfo}>
-                  Position: <Text style={{ color: AppleColors.labelPrimary }}>{position.stakeUsdc} USDC</Text> · est. {position.estimatedMultiplier.toFixed(2)}x
-                </Text>
-                <View style={styles.txRow}>
-                  <Ionicons
-                    name="link"
-                    size={12}
-                    color={AppleColors.systemBlue}
-                  />
-                  <Text style={styles.txHash}>
-                    {position.receipt.signature || position.receipt.id}
-                  </Text>
+                  {/* Title and Subtitle */}
+                  <View style={styles.itemTextCol}>
+                    <Text style={styles.itemTitle} numberOfLines={1}>
+                      {position.selectedAgentName} ({position.outcome})
+                    </Text>
+                    <Text style={styles.itemSubtitle}>
+                      {position.matchTitle} · {new Date(position.placedAt).toLocaleDateString([], {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </Text>
+                  </View>
+
+                  {/* Amount / Payout */}
+                  <View style={styles.itemAmountCol}>
+                    <Text
+                      style={[
+                        styles.itemAmountText,
+                        isWon && { color: AppleColors.brandEmerald },
+                        isLost && { color: AppleColors.labelTertiary },
+                      ]}
+                    >
+                      {isWon ? '+' : isLost ? '-' : ''}
+                      {position.estimatedReturnUsdc.toFixed(2)} USDC
+                    </Text>
+                    <Text style={styles.itemMultiplierText}>
+                      Stake: {position.stakeUsdc} USDC ({position.estimatedMultiplier.toFixed(2)}x)
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            </Card>
-          ))}
+
+                {/* Footer Signature */}
+                <View style={styles.itemFooterRow}>
+                  <Tag
+                    label={position.status}
+                    type={isWon ? 'win' : isLost ? 'loss' : 'master'}
+                  />
+                  <View style={styles.txLinkRow}>
+                    <Ionicons name="link-outline" size={12} color={AppleColors.brandCyan} />
+                    <Text style={styles.txSignatureText}>
+                      {(position.receipt.signature || position.receipt.id).slice(0, 16)}...
+                    </Text>
+                  </View>
+                </View>
+              </Card>
+            );
+          })}
       </ScrollView>
     </SafeAreaView>
   );
@@ -240,75 +323,173 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? 32 : Spacing.sm,
     paddingBottom: Spacing.xxl,
   },
-  header: {
-    marginBottom: Spacing.lg,
-  },
-  badgeRow: {
+  zenHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
   },
-  pulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: AppleColors.brandEmerald,
-    marginRight: 6,
-  },
-  subtitle: {
-    ...Typography.caption2,
-    color: AppleColors.brandEmerald,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-  },
-  title: {
+  zenHeaderTitle: {
     ...Typography.largeTitle,
     color: AppleColors.labelPrimary,
     fontWeight: '800',
     letterSpacing: -0.5,
   },
-  description: {
-    ...Typography.footnote,
-    color: AppleColors.labelSecondary,
-    marginTop: 4,
-    lineHeight: 18,
+  zenHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  pnlCard: {
-    marginBottom: Spacing.md,
-    backgroundColor: AppleColors.card,
-    borderRadius: Radii.lg,
+  zenIconPill: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: AppleColors.cardElevated,
     borderWidth: 1,
     borderColor: AppleColors.border,
-    padding: Spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  pnlLabel: {
-    ...Typography.caption2,
+  zenAvatarPill: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  analyticsHeroCard: {
+    backgroundColor: AppleColors.card,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.xs,
+  },
+  cardSectionLabel: {
+    ...Typography.caption1,
     color: AppleColors.labelSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontWeight: '500',
+  },
+  timeframePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: AppleColors.cardElevated,
+    borderRadius: Radii.pill,
+    borderWidth: 1,
+    borderColor: AppleColors.border,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    gap: 4,
+  },
+  timeframeText: {
+    ...Typography.caption2,
+    color: AppleColors.labelPrimary,
     fontWeight: '600',
   },
-  pnlValue: {
-    ...Typography.numericLarge,
-    marginVertical: 4,
-    fontWeight: '800',
-  },
-  pnlRow: {
+  valueRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: AppleColors.border,
-    paddingTop: Spacing.sm,
+    alignItems: 'baseline',
+    marginTop: 4,
   },
-  pnlItem: {
+  hugeNetValue: {
+    fontSize: 34,
+    fontWeight: '800',
+    letterSpacing: -0.8,
+  },
+  usdcUnitText: {
+    ...Typography.footnote,
+    color: AppleColors.labelSecondary,
+    marginLeft: 6,
+    fontWeight: '600',
+  },
+  pctRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+    marginBottom: Spacing.md,
+  },
+  pctText: {
+    ...Typography.caption1,
+    fontWeight: '600',
+  },
+  chartWrapper: {
+    backgroundColor: AppleColors.cardElevated,
+    borderRadius: Radii.lg,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    marginBottom: Spacing.md,
     alignItems: 'center',
   },
-  pnlSubLabel: {
+  chartTooltip: {
+    backgroundColor: '#000000',
+    borderRadius: Radii.pill,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    marginBottom: Spacing.sm,
+  },
+  chartTooltipText: {
     ...Typography.caption2,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  waveContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    width: '100%',
+    height: 50,
+    paddingHorizontal: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  waveBar: {
+    width: 6,
+    height: 12,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  daysRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: Spacing.xs,
+  },
+  dayLabel: {
+    fontSize: 10,
+    color: AppleColors.labelTertiary,
+    fontWeight: '500',
+  },
+  dayActive: {
+    color: AppleColors.labelPrimary,
+    fontWeight: '700',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    paddingTop: Spacing.sm,
+  },
+  statCol: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statColLabel: {
+    fontSize: 10,
     color: AppleColors.labelTertiary,
   },
-  pnlSubValue: {
+  statColValue: {
     ...Typography.numericSmall,
     color: AppleColors.labelPrimary,
     marginTop: 2,
@@ -320,7 +501,7 @@ const styles = StyleSheet.create({
   loadingCol: {
     paddingVertical: Spacing.md,
   },
-  ticketCard: {
+  itemCard: {
     marginBottom: Spacing.sm,
     backgroundColor: AppleColors.card,
     borderRadius: Radii.lg,
@@ -328,73 +509,72 @@ const styles = StyleSheet.create({
     borderColor: AppleColors.border,
     padding: Spacing.md,
   },
-  ticketHeader: {
+  itemMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: Spacing.sm,
   },
-  dateText: {
-    ...Typography.caption1,
-    color: AppleColors.labelTertiary,
+  circleIconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: AppleColors.cardElevated,
+    borderWidth: 1,
+    borderColor: AppleColors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
   },
-  matchTitle: {
+  circleWon: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  circleLost: {
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+  },
+  itemTextCol: {
+    flex: 1,
+  },
+  itemTitle: {
     ...Typography.headline,
     color: AppleColors.labelPrimary,
-    marginBottom: Spacing.sm,
     fontWeight: '700',
   },
-  ticketBody: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: AppleColors.cardElevated,
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    padding: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  backedLabel: {
+  itemSubtitle: {
     ...Typography.caption2,
-    color: AppleColors.labelTertiary,
-  },
-  backedAgent: {
-    ...Typography.footnote,
-    fontWeight: '600',
-    color: AppleColors.labelPrimary,
+    color: AppleColors.labelSecondary,
     marginTop: 2,
   },
-  payoutLabel: {
-    ...Typography.caption2,
-    color: AppleColors.labelTertiary,
+  itemAmountCol: {
+    alignItems: 'flex-end',
   },
-  payoutValue: {
+  itemAmountText: {
     ...Typography.numericMedium,
     color: AppleColors.labelPrimary,
-    marginTop: 2,
-    fontWeight: '700',
+    fontWeight: '800',
   },
-  ticketFooter: {
+  itemMultiplierText: {
+    fontSize: 10,
+    color: AppleColors.labelTertiary,
+    marginTop: 2,
+  },
+  itemFooterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: AppleColors.border,
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
     paddingTop: Spacing.xs,
   },
-  stakeInfo: {
-    ...Typography.caption1,
-    color: AppleColors.labelSecondary,
-  },
-  txRow: {
+  txLinkRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
   },
-  txHash: {
-    ...Typography.caption2,
+  txSignatureText: {
+    fontSize: 10,
     color: AppleColors.brandCyan,
-    marginLeft: 3,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
 });

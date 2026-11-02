@@ -312,7 +312,7 @@ export default function ProfileScreen() {
           ) : (
             <Button
               title="Sign In with Google or Apple"
-              onPress={() => router.push('/(onboarding)/connect-wallet')}
+              onPress={() => useFerasStore.getState().openAuthSheet()}
               variant="primary"
               size="md"
               style={styles.connectPrimaryBtn}

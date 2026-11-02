@@ -204,7 +204,15 @@ export function MarketPositionSheet() {
     }
   }
 
-  if (!canCreateMarketPosition && !hasInsufficientFunds) {
+  if (!wallet.isConnected) {
+    buttonTitle = 'Sign In with Google / Apple to Bet';
+    buttonAction = async () => {
+      close();
+      useFerasStore.getState().openAuthSheet();
+    };
+    buttonDisabled = false;
+    buttonLoading = false;
+  } else if (!canCreateMarketPosition && !hasInsufficientFunds) {
     buttonTitle = 'Devnet Market Not Configured';
     buttonDisabled = true;
   }
