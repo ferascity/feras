@@ -53,11 +53,14 @@ export default function MyAgentsScreen() {
         {/* Header with Deploy CTA */}
         <View style={styles.headerRow}>
           <View>
-            <Text style={styles.headerSubtitle}>PORTFOLIO ENGINE</Text>
+            <View style={styles.badgeRow}>
+              <View style={styles.pulseDot} />
+              <Text style={styles.headerSubtitle}>AUTONOMOUS AGENT STUDIO</Text>
+            </View>
             <Text style={styles.headerTitle}>My Agents</Text>
           </View>
           <Button
-            title="+ Deploy"
+            title="+ Deploy Agent"
             onPress={() => router.push('/agent/submit')}
             variant="primary"
             size="sm"
@@ -80,7 +83,7 @@ export default function MyAgentsScreen() {
             </View>
             <View style={styles.summaryStatItem}>
               <Text style={styles.statSubLabel}>Validator Status</Text>
-              <Text style={[styles.statSubValue, { color: AppleColors.systemGreen }]}>
+              <Text style={[styles.statSubValue, { color: AppleColors.brandEmerald }]}>
                 Active
               </Text>
             </View>
@@ -162,35 +165,56 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  pulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: AppleColors.brandEmerald,
+    marginRight: 6,
   },
   headerSubtitle: {
     ...Typography.caption2,
-    color: AppleColors.systemBlue,
+    color: AppleColors.brandEmerald,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   headerTitle: {
     ...Typography.largeTitle,
     color: AppleColors.labelPrimary,
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
   summaryCard: {
     marginBottom: Spacing.md,
-    backgroundColor: AppleColors.fillSecondary,
+    backgroundColor: AppleColors.card,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: AppleColors.border,
+    padding: Spacing.md,
   },
   summaryLabel: {
     ...Typography.caption2,
     color: AppleColors.labelSecondary,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    fontWeight: '600',
   },
   summaryValue: {
     ...Typography.numericLarge,
-    color: AppleColors.systemGreen,
+    color: AppleColors.brandEmerald,
     marginVertical: 4,
+    fontWeight: '800',
   },
   summaryDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: AppleColors.separator,
+    height: 1,
+    backgroundColor: AppleColors.border,
     marginVertical: Spacing.sm,
   },
   summaryStatsRow: {
@@ -208,6 +232,7 @@ const styles = StyleSheet.create({
     ...Typography.numericSmall,
     color: AppleColors.labelPrimary,
     marginTop: 2,
+    fontWeight: '700',
   },
   loadingCol: {
     paddingVertical: Spacing.md,

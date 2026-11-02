@@ -411,17 +411,17 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: AppleColors.fillSecondary,
+    backgroundColor: AppleColors.cardElevated,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.xs,
     marginBottom: Spacing.xs,
     borderWidth: 1,
-    borderColor: AppleColors.cardBorder,
+    borderColor: AppleColors.border,
   },
   emojiChipActive: {
-    borderColor: AppleColors.systemBlue,
-    backgroundColor: 'rgba(10, 132, 255, 0.2)',
+    borderColor: AppleColors.brandEmerald,
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
   },
   emojiText: {
     fontSize: 20,
@@ -451,13 +451,18 @@ const styles = StyleSheet.create({
     flex: 2,
   },
   rulesCard: {
-    backgroundColor: AppleColors.fillSecondary,
+    backgroundColor: AppleColors.cardElevated,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: AppleColors.border,
+    padding: Spacing.md,
     marginBottom: Spacing.md,
   },
   rulesTitle: {
     ...Typography.headline,
     color: AppleColors.labelPrimary,
     marginBottom: Spacing.xs,
+    fontWeight: '700',
   },
   ruleItem: {
     ...Typography.footnote,
@@ -480,8 +485,8 @@ const styles = StyleSheet.create({
     marginRight: Spacing.sm,
   },
   checkboxChecked: {
-    backgroundColor: AppleColors.systemBlue,
-    borderColor: AppleColors.systemBlue,
+    backgroundColor: AppleColors.brandEmerald,
+    borderColor: AppleColors.brandEmerald,
   },
   checkmark: {
     color: '#FFFFFF',
@@ -496,6 +501,11 @@ const styles = StyleSheet.create({
   },
   reviewCard: {
     marginBottom: Spacing.md,
+    backgroundColor: AppleColors.card,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: AppleColors.border,
+    padding: Spacing.md,
   },
   reviewHeader: {
     flexDirection: 'row',
@@ -508,14 +518,15 @@ const styles = StyleSheet.create({
   reviewName: {
     ...Typography.title3,
     color: AppleColors.labelPrimary,
+    fontWeight: '700',
   },
   reviewHandle: {
     ...Typography.footnote,
     color: AppleColors.labelSecondary,
   },
   reviewDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: AppleColors.separator,
+    height: 1,
+    backgroundColor: AppleColors.border,
     marginVertical: Spacing.md,
   },
   reviewRow: {

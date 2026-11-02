@@ -369,9 +369,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: Spacing.sm,
+    padding: Spacing.md,
     marginBottom: Spacing.md,
     minHeight: 64,
+    backgroundColor: AppleColors.card,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: AppleColors.border,
   },
   agentBox: {
     flexDirection: 'row',
@@ -449,8 +453,8 @@ const styles = StyleSheet.create({
   },
   tabRow: {
     flexDirection: 'row',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: AppleColors.separator,
+    borderBottomWidth: 1,
+    borderBottomColor: AppleColors.border,
     paddingBottom: Spacing.xs,
     marginBottom: Spacing.sm,
   },
@@ -461,7 +465,7 @@ const styles = StyleSheet.create({
   },
   activeSubTab: {
     borderBottomWidth: 2,
-    borderBottomColor: AppleColors.systemBlue,
+    borderBottomColor: AppleColors.brandEmerald,
   },
   subTabText: {
     ...Typography.footnote,
@@ -469,8 +473,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   activeSubTabText: {
-    color: AppleColors.labelPrimary,
-    fontWeight: '600',
+    color: AppleColors.brandEmerald,
+    fontWeight: '700',
   },
   commentaryList: {
     paddingVertical: Spacing.xs,

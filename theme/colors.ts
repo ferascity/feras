@@ -39,7 +39,10 @@ export const AppleColors = {
   separator: 'rgba(84, 84, 88, 0.45)',    // Subtle list separator
   separatorOpaque: '#38383A',             // Non-transparent divider
   cardBorder: 'rgba(255, 255, 255, 0.08)',// Crisp Apple border outline
+  border: 'rgba(255, 255, 255, 0.08)',    // Universal obsidian border token
   accentBorder: 'rgba(10, 132, 255, 0.3)',// Focused border
+  card: '#121316',                        // Primary obsidian card surface
+  cardElevated: '#1A1C22',                // Elevated obsidian card surface
 
   // Fills & Controls
   fill: 'rgba(120, 120, 128, 0.24)',      // Inset inputs & pill backgrounds

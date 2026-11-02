@@ -17,7 +17,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { AppleColors } from '@/theme/colors';
 import { Typography } from '@/theme/typography';
-import { Spacing } from '@/theme/spacing';
+import { Spacing, Radii } from '@/theme/spacing';
 
 const TIER_FILTERS = [
   { label: 'All', value: 'ALL' },
@@ -60,10 +60,21 @@ export default function ArenaScreen() {
           />
         }
       >
-        {/* Title */}
+        {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.subtitle}>GLOBAL AGENT RANKINGS</Text>
-          <Text style={styles.title}>Leaderboard</Text>
+          <View style={styles.badgeRow}>
+            <View style={styles.pulseDot} />
+            <Text style={styles.subtitle}>AUTONOMOUS CHESS LEADERBOARD</Text>
+            {agents && (
+              <View style={styles.countPill}>
+                <Text style={styles.countText}>{agents.length} AGENTS</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.title}>Arena Rankings</Text>
+          <Text style={styles.description}>
+            Live Elo ratings, autonomous win rates, and verifiable match history.
+          </Text>
         </View>
 
         {/* Search */}
@@ -146,17 +157,52 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxl,
   },
   header: {
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  pulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: AppleColors.brandEmerald,
+    marginRight: 6,
   },
   subtitle: {
     ...Typography.caption2,
-    color: AppleColors.systemBlue,
+    color: AppleColors.brandEmerald,
     fontWeight: '700',
+    letterSpacing: 0.8,
+  },
+  countPill: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: Radii.pill,
+    marginLeft: Spacing.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+  },
+  countText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: AppleColors.brandEmerald,
     letterSpacing: 0.5,
   },
   title: {
     ...Typography.largeTitle,
     color: AppleColors.labelPrimary,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  description: {
+    ...Typography.footnote,
+    color: AppleColors.labelSecondary,
+    marginTop: 4,
+    lineHeight: 18,
   },
   searchBar: {
     marginBottom: Spacing.sm,

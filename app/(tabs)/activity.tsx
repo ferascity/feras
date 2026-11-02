@@ -68,24 +68,30 @@ export default function ActivityScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.subtitle}>DEVNET POSITION HISTORY</Text>
+          <View style={styles.badgeRow}>
+            <View style={styles.pulseDot} />
+            <Text style={styles.subtitle}>VERIFIABLE PREDICTION LEDGER</Text>
+          </View>
           <Text style={styles.title}>Activity</Text>
+          <Text style={styles.description}>
+            Track your prediction performance, settled returns, and on-chain receipts.
+          </Text>
         </View>
 
         {/* PnL Performance Card */}
         <Card style={styles.pnlCard}>
-          <Text style={styles.pnlLabel}>Devnet Net Result</Text>
+          <Text style={styles.pnlLabel}>Devnet Net Profit / Loss</Text>
           <Text
             style={[
               styles.pnlValue,
-              { color: netPnL >= 0 ? AppleColors.systemGreen : AppleColors.systemRed },
+              { color: netPnL >= 0 ? AppleColors.brandEmerald : AppleColors.systemRed },
             ]}
           >
             {netPnL >= 0 ? '+' : '-'}{Math.abs(netPnL).toFixed(2)} USDC
           </Text>
           <View style={styles.pnlRow}>
             <View style={styles.pnlItem}>
-              <Text style={styles.pnlSubLabel}>Positioned</Text>
+              <Text style={styles.pnlSubLabel}>Total Positioned</Text>
               <Text style={styles.pnlSubValue}>
                 {(positions || []).reduce((total, position) => total + position.stakeUsdc, 0).toFixed(0)} USDC
               </Text>
@@ -101,7 +107,7 @@ export default function ActivityScreen() {
             </View>
             <View style={styles.pnlItem}>
               <Text style={styles.pnlSubLabel}>Win Ratio</Text>
-              <Text style={[styles.pnlSubValue, { color: AppleColors.systemGreen }]}>
+              <Text style={[styles.pnlSubValue, { color: AppleColors.brandEmerald }]}>
                 {positions && positions.length > 0
                   ? `${Math.round(
                       (positions.filter((position) => position.status === 'WON').length /
@@ -235,37 +241,64 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxl,
   },
   header: {
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  pulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: AppleColors.brandEmerald,
+    marginRight: 6,
   },
   subtitle: {
     ...Typography.caption2,
-    color: AppleColors.systemBlue,
+    color: AppleColors.brandEmerald,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   title: {
     ...Typography.largeTitle,
     color: AppleColors.labelPrimary,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  description: {
+    ...Typography.footnote,
+    color: AppleColors.labelSecondary,
+    marginTop: 4,
+    lineHeight: 18,
   },
   pnlCard: {
     marginBottom: Spacing.md,
-    backgroundColor: AppleColors.fillSecondary,
+    backgroundColor: AppleColors.card,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: AppleColors.border,
+    padding: Spacing.md,
   },
   pnlLabel: {
     ...Typography.caption2,
     color: AppleColors.labelSecondary,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    fontWeight: '600',
   },
   pnlValue: {
     ...Typography.numericLarge,
     marginVertical: 4,
+    fontWeight: '800',
   },
   pnlRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: Spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: AppleColors.separator,
+    borderTopWidth: 1,
+    borderTopColor: AppleColors.border,
     paddingTop: Spacing.sm,
   },
   pnlItem: {
@@ -279,6 +312,7 @@ const styles = StyleSheet.create({
     ...Typography.numericSmall,
     color: AppleColors.labelPrimary,
     marginTop: 2,
+    fontWeight: '700',
   },
   filterControl: {
     marginBottom: Spacing.md,
@@ -288,6 +322,11 @@ const styles = StyleSheet.create({
   },
   ticketCard: {
     marginBottom: Spacing.sm,
+    backgroundColor: AppleColors.card,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: AppleColors.border,
+    padding: Spacing.md,
   },
   ticketHeader: {
     flexDirection: 'row',
@@ -303,13 +342,16 @@ const styles = StyleSheet.create({
     ...Typography.headline,
     color: AppleColors.labelPrimary,
     marginBottom: Spacing.sm,
+    fontWeight: '700',
   },
   ticketBody: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: AppleColors.fillSecondary,
-    borderRadius: Radii.sm,
+    backgroundColor: AppleColors.cardElevated,
+    borderRadius: Radii.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
     padding: Spacing.sm,
     marginBottom: Spacing.sm,
   },
@@ -331,13 +373,14 @@ const styles = StyleSheet.create({
     ...Typography.numericMedium,
     color: AppleColors.labelPrimary,
     marginTop: 2,
+    fontWeight: '700',
   },
   ticketFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: AppleColors.separator,
+    borderTopWidth: 1,
+    borderTopColor: AppleColors.border,
     paddingTop: Spacing.xs,
   },
   stakeInfo: {
@@ -350,7 +393,7 @@ const styles = StyleSheet.create({
   },
   txHash: {
     ...Typography.caption2,
-    color: AppleColors.systemBlue,
+    color: AppleColors.brandCyan,
     marginLeft: 3,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
