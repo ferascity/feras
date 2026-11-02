@@ -2,10 +2,12 @@ import { IWalletService } from './IWalletService';
 import { MobileWalletService } from './MobileWalletService';
 import { PrivyWalletService } from './PrivyWalletService';
 import { UnavailableWalletService } from './UnavailableWalletService';
-import Constants from 'expo-constants';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
 
-export const isExpoGo = Constants.appOwnership === 'expo';
+export const isExpoGo =
+  Constants.appOwnership === 'expo' ||
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 export const isMobileWalletRuntime = Platform.OS === 'android' && !isExpoGo;
 
 export const mobileWalletService = new MobileWalletService();
