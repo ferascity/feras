@@ -276,8 +276,35 @@ async function loadOwnerPositions(ownerAddress, registry) {
   ).then((entries) => entries.flat());
 }
 
+const CORS_ORIGINS = (process.env.FERAS_CORS_ORIGINS || '*')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+function applyCors(request, response) {
+  const origin = request.headers.origin;
+  if (!origin) return;
+  if (CORS_ORIGINS.includes('*')) {
+    response.setHeader('Access-Control-Allow-Origin', '*');
+  } else if (CORS_ORIGINS.includes(origin)) {
+    response.setHeader('Access-Control-Allow-Origin', origin);
+    response.setHeader('Vary', 'Origin');
+  } else {
+    return;
+  }
+  response.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  response.setHeader('Access-Control-Max-Age', '86400');
+}
+
 async function handle(request, response) {
   try {
+    applyCors(request, response);
+    if (request.method === 'OPTIONS') {
+      response.writeHead(204);
+      response.end();
+      return undefined;
+    }
     const url = new URL(request.url, `http://${request.headers.host}`);
     if (request.method === 'GET' && url.pathname === '/healthz') {
       return json(response, 200, { service: 'feras-market-api', cluster: 'devnet', status: 'ok', matchSource: matchReadApi ? 'postgres' : 'registry' });
