@@ -11,6 +11,7 @@ RUN npm install --legacy-peer-deps --no-audit --no-fund
 
 COPY market-api ./market-api
 COPY backend ./backend
+COPY scripts ./scripts
 COPY config/agent-profiles.json ./config/agent-profiles.json
 COPY config/devnet-markets.example.json ./config/devnet-markets.json
 
