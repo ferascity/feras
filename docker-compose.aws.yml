@@ -11,6 +11,15 @@ services:
       FERAS_SOLANA_RPC_URL: ${FERAS_SOLANA_RPC_URL:-https://api.devnet.solana.com}
       FERAS_PROGRAM_ID: ${FERAS_PROGRAM_ID:-3UJi7D53Cbj5TLGbbxFCzqW9vE7Ji5N5KKEdbQMWFaFA}
       FERAS_DEVNET_USDC_MINT: ${FERAS_DEVNET_USDC_MINT:-CwhBMtAs7tAHSabWrW2Dg2hgQ7Ktt7pW86UR35Be9VrU}
+      # Private beta float. The secret is a JSON key array stored in
+      # /opt/feras/.env.aws (600) and mirrored to SSM SecureString
+      # /feras/beta/treasury-secret. Leave unset to keep claims disabled.
+      FERAS_BETA_TREASURY_SECRET_KEY: ${FERAS_BETA_TREASURY_SECRET_KEY:-}
+      FERAS_BETA_TREASURY_ADDRESS: ${FERAS_BETA_TREASURY_ADDRESS:-}
+      FERAS_BETA_STARTER_SOL: ${FERAS_BETA_STARTER_SOL:-0.25}
+      FERAS_BETA_STARTER_USDC: ${FERAS_BETA_STARTER_USDC:-25}
+      FERAS_BETA_SOL_TO_USDC: ${FERAS_BETA_SOL_TO_USDC:-150}
+      FERAS_BETA_DISABLED: ${FERAS_BETA_DISABLED:-false}
 
   coordinator:
     restart: unless-stopped

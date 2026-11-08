@@ -18,11 +18,30 @@ const PORT = Number(process.env.PORT || 8787);
 const RPC_URL = process.env.FERAS_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 const REGISTRY_PATH = process.env.FERAS_MARKET_REGISTRY_PATH || 'config/devnet-markets.json';
 let matchReadApi = null;
+let betaService = null;
 
 if (process.env.FERAS_DATABASE_URL) {
   const { MatchRepository } = require('../backend/src/repository');
   const { createReadApi } = require('../backend/src/read-api');
   matchReadApi = createReadApi(new MatchRepository(process.env.FERAS_DATABASE_URL));
+
+  // The beta service is instantiated even without a treasury key so that
+  // /v1/beta/status can explain that grants are disabled instead of 404ing.
+  try {
+    const { createBetaService } = require('../backend/src/beta');
+    betaService = createBetaService({
+      databaseUrl: process.env.FERAS_DATABASE_URL,
+      rpcUrl: RPC_URL,
+      mint: process.env.FERAS_DEVNET_USDC_MINT,
+      treasurySecret: process.env.FERAS_BETA_TREASURY_SECRET_KEY,
+      expectedTreasury: process.env.FERAS_BETA_TREASURY_ADDRESS,
+    });
+    if (!betaService.enabled) {
+      process.stderr.write(`Beta credits disabled: ${betaService.disabledReason}\n`);
+    }
+  } catch (error) {
+    process.stderr.write(`Beta credits unavailable: ${error instanceof Error ? error.message : error}\n`);
+  }
 }
 
 function required(name) {
@@ -382,6 +401,17 @@ async function handle(request, response) {
       const match = await matchReadApi.get(id);
       return match ? json(response, 200, match) : json(response, 404, { error: 'Match not found' });
     }
+    if (betaService && request.method === 'GET' && url.pathname === '/v1/beta/status') {
+      const owner = url.searchParams.get('owner');
+      if (!owner) throw Object.assign(new Error('owner query parameter is required'), { status: 400 });
+      return json(response, 200, await betaService.status(owner));
+    }
+    if (betaService && request.method === 'POST' && url.pathname === '/v1/beta/claim') {
+      const chunks = [];
+      for await (const chunk of request) chunks.push(chunk);
+      const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+      return json(response, 200, await betaService.claim(body));
+    }
     const registry = readRegistry();
     if (request.method === 'GET' && url.pathname === '/v1/matches') {
       const status = url.searchParams.get('status');
@@ -404,7 +434,10 @@ async function handle(request, response) {
     }
     return json(response, 404, { error: 'Not found' });
   } catch (error) {
-    return json(response, 422, { error: error instanceof Error ? error.message : 'Invalid request' });
+    const status = Number(error?.status);
+    return json(response, Number.isInteger(status) && status >= 400 && status <= 599 ? status : 422, {
+      error: error instanceof Error ? error.message : 'Invalid request',
+    });
   }
 }
 
