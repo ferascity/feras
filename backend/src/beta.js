@@ -14,6 +14,7 @@
  */
 
 const crypto = require('node:crypto');
+const nacl = require('tweetnacl');
 const { Pool } = require('pg');
 const {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -142,8 +143,8 @@ function encodeBase58(bytes) {
 /**
  * Check that a client-signed top-up transaction is exactly the one the service
  * prepared: the tester pays SOL to the float, the float pays test-USDC to the
- * tester's associated token account, and nothing else moves. The treasury's
- * signature is already on the message, so any edit invalidates it.
+ * tester's associated token account, and nothing else moves. The float only
+ * adds its signature after this check passes.
  */
 function verifySwapTransaction(input) {
   const {
@@ -166,10 +167,23 @@ function verifySwapTransaction(input) {
   if (!transaction.feePayer?.equals(walletKey)) {
     throw httpError(400, 'The top-up transaction has the wrong fee payer');
   }
+
+  const walletEntry = transaction.signatures.find((entry) => entry.publicKey.equals(walletKey));
+  if (!walletEntry?.signature) {
+    throw httpError(401, 'The top-up transaction is not signed by the wallet');
+  }
+  let validSignature = false;
   try {
-    transaction.verifySignatures();
+    validSignature = nacl.sign.detached.verify(
+      transaction.serializeMessage(),
+      walletEntry.signature,
+      walletKey.toBytes(),
+    );
   } catch {
-    throw httpError(400, 'The top-up transaction is missing a valid signature');
+    validSignature = false;
+  }
+  if (!validSignature) {
+    throw httpError(401, 'The top-up transaction has an invalid wallet signature');
   }
 
   let seenSol = false;
@@ -710,51 +724,46 @@ function createBetaService(options) {
       const walletAta = getAssociatedTokenAddressSync(
         mintKey, walletKey, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
       );
-      const latest = await connection.getLatestBlockhash('confirmed');
-      const transaction = new Transaction();
-      transaction.feePayer = walletKey;
-      transaction.recentBlockhash = latest.blockhash;
-      transaction.add(SystemProgram.transfer({
-        fromPubkey: walletKey,
-        toPubkey: treasury.publicKey,
-        lamports: Number(lamports),
+      // Return raw instructions; the tester's wallet builds and signs a normal
+      // single-signer transaction. The float adds its signature only after the
+      // server has verified the exact instruction set.
+      const instructions = [
+        SystemProgram.transfer({
+          fromPubkey: walletKey,
+          toPubkey: treasury.publicKey,
+          lamports: Number(lamports),
+        }),
+        createAssociatedTokenAccountIdempotentInstruction(
+          walletKey,
+          walletAta,
+          walletKey,
+          mintKey,
+          TOKEN_PROGRAM_ID,
+          ASSOCIATED_TOKEN_PROGRAM_ID,
+        ),
+        createTransferCheckedInstruction(
+          treasuryAta,
+          mintKey,
+          walletAta,
+          treasury.publicKey,
+          usdcUnits,
+          USDC_DECIMALS,
+          [],
+          TOKEN_PROGRAM_ID,
+        ),
+      ].map((instruction) => ({
+        programId: instruction.programId.toBase58(),
+        keys: instruction.keys.map((key) => ({
+          pubkey: key.pubkey.toBase58(),
+          isSigner: key.isSigner,
+          isWritable: key.isWritable,
+        })),
+        data: instruction.data.toString('base64'),
       }));
-      transaction.add(createAssociatedTokenAccountIdempotentInstruction(
-        walletKey,
-        walletAta,
-        walletKey,
-        mintKey,
-        TOKEN_PROGRAM_ID,
-        ASSOCIATED_TOKEN_PROGRAM_ID,
-      ));
-      transaction.add(createTransferCheckedInstruction(
-        treasuryAta,
-        mintKey,
-        walletAta,
-        treasury.publicKey,
-        usdcUnits,
-        USDC_DECIMALS,
-        [],
-        TOKEN_PROGRAM_ID,
-      ));
-      transaction.partialSign(treasury);
-
-      const serialized = transaction.serialize({
-        requireAllSignatures: false,
-        verifySignatures: false,
-      });
-
-      await pool.query(
-        `UPDATE beta_ledger SET metadata = metadata || $2::jsonb WHERE id = $1`,
-        [swapId, JSON.stringify({
-          blockhash: latest.blockhash,
-          lastValidBlockHeight: latest.lastValidBlockHeight,
-        })],
-      );
 
       return {
         swapId,
-        transaction: serialized.toString('base64'),
+        instructions,
         usdc: usdcValue,
         sol: Number(lamports) / LAMPORTS_PER_SOL,
         rate: limits.solToUsdcRate,
@@ -813,7 +822,6 @@ function createBetaService(options) {
       throw httpError(410, 'The top-up request expired. Please try again.');
     }
 
-    const metadata = row.metadata ?? {};
     const treasuryAta = getAssociatedTokenAddressSync(
       mintKey, treasury.publicKey, true, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
     );
@@ -840,6 +848,7 @@ function createBetaService(options) {
 
     let signature = verified.signature;
     try {
+      verified.transaction.partialSign(treasury);
       await connection.sendRawTransaction(verified.transaction.serialize(), {
         skipPreflight: false,
         preflightCommitment: 'confirmed',
@@ -869,25 +878,14 @@ function createBetaService(options) {
     }
 
     try {
-      const blockhash = typeof metadata.blockhash === 'string' ? metadata.blockhash : verified.transaction.recentBlockhash;
-      const lastValidBlockHeight = Number(metadata.lastValidBlockHeight);
-      if (blockhash && Number.isFinite(lastValidBlockHeight)) {
-        const confirmation = await connection.confirmTransaction(
-          { signature, blockhash, lastValidBlockHeight },
-          'confirmed',
-        );
-        if (confirmation.value.err) throw new Error('The top-up transaction failed on-chain');
-      } else {
-        // Fallback: poll the signature status if the metadata is incomplete.
-        const deadline = Date.now() + 45_000;
-        for (;;) {
-          const status = await connection.getSignatureStatuses([signature]);
-          const value = status.value[0];
-          if (value?.err) throw new Error('The top-up transaction failed on-chain');
-          if (value?.confirmationStatus === 'confirmed' || value?.confirmationStatus === 'finalized') break;
-          if (Date.now() > deadline) throw new Error('The top-up is still confirming; refresh in a moment');
-          await new Promise((resolve) => setTimeout(resolve, 1500));
-        }
+      const deadline = Date.now() + 60_000;
+      for (;;) {
+        const status = await connection.getSignatureStatuses([signature]);
+        const value = status.value[0];
+        if (value?.err) throw new Error('The top-up transaction failed on-chain');
+        if (value?.confirmationStatus === 'confirmed' || value?.confirmationStatus === 'finalized') break;
+        if (Date.now() > deadline) throw new Error('The top-up is still confirming; refresh in a moment');
+        await new Promise((resolve) => setTimeout(resolve, 1500));
       }
     } catch (error) {
       const status = await connection.getSignatureStatuses([signature]).catch(() => null);

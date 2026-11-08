@@ -133,7 +133,7 @@ function buildSwapTransaction({ wallet, treasury, mint, usdcUnits, lamports }) {
     [],
     TOKEN_PROGRAM_ID,
   ));
-  transaction.partialSign(treasury, wallet);
+  transaction.partialSign(wallet);
   return { transaction, treasuryAta, walletAta };
 }
 
@@ -148,7 +148,7 @@ test('the prepared top-up transaction passes instruction verification', () => {
   });
 
   const verified = verifySwapTransaction({
-    serialized: transaction.serialize(),
+    serialized: transaction.serialize({ requireAllSignatures: false, verifySignatures: false }),
     walletKey: wallet.publicKey,
     mintKey: mint,
     treasuryKey: treasury.publicKey,
@@ -158,6 +158,9 @@ test('the prepared top-up transaction passes instruction verification', () => {
     usdcUnits,
   });
   assert.equal(verified.signature, encodeSignature(transaction));
+  // The float can now complete the transaction.
+  verified.transaction.partialSign(treasury);
+  assert.doesNotThrow(() => verified.transaction.serialize());
 });
 
 test('the verifier rejects a transaction that pays a different amount', () => {
@@ -171,7 +174,7 @@ test('the verifier rejects a transaction that pays a different amount', () => {
 
   assert.throws(
     () => verifySwapTransaction({
-      serialized: transaction.serialize(),
+      serialized: transaction.serialize({ requireAllSignatures: false, verifySignatures: false }),
       walletKey: wallet.publicKey,
       mintKey: mint,
       treasuryKey: treasury.publicKey,

@@ -69,7 +69,7 @@ key leaks is the loss of the float, which is test credit.
 | --- | --- | --- |
 | `GET` | `/v1/beta/status?owner=<wallet>` | eligibility, grant state, float health, limits, today's usage |
 | `POST` | `/v1/beta/claim` | `{ code, wallet, issuedAt, signature }` → atomic grant |
-| `POST` | `/v1/beta/swap/prepare` | `{ wallet, usdc, issuedAt, signature }` → `{ swapId, transaction, usdc, sol, rate, expiresAt }` |
+| `POST` | `/v1/beta/swap/prepare` | `{ wallet, usdc, issuedAt, signature }` → `{ swapId, instructions, usdc, sol, rate, expiresAt }` |
 | `POST` | `/v1/beta/swap/submit` | `{ swapId, wallet, transaction }` → submits the tester-signed transaction |
 
 `signature` is base64 of the wallet's ed25519 signature over
@@ -79,11 +79,12 @@ second claims.
 
 For a top-up the signed message is
 `feras-beta-swap:v1:<wallet>:<usdc-base-units>:<issuedAt>`. `prepare` reserves the
-daily allowance and returns a transaction the float has already signed (the SOL
-leg from the tester to the float, the ATA create, and the test-USDC leg from the
-float). The tester's wallet adds its signature and `submit` verifies every
-instruction, the fee payer, and both signatures before sending. The tester pays
-the network fee and the associated token account rent.
+daily allowance and returns the three raw instructions (the SOL leg from the
+tester to the float, the ATA create, and the test-USDC leg from the float). The
+tester's wallet builds and signs a normal single-signer transaction; `submit`
+checks the fee payer, the wallet signature, and every instruction, then the float
+adds its signature and sends. The tester pays the network fee and the associated
+token account rent.
 
 Top-ups are limited (defaults): 5–100 test-USDC per request, 100 test-USDC and
 0.5 SOL per wallet per day, 1,000 test-USDC across all wallets per day. A prepared
