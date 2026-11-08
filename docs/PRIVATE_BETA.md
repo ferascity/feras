@@ -67,13 +67,27 @@ key leaks is the loss of the float, which is test credit.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/v1/beta/status?owner=<wallet>` | eligibility, grant state, float health, limits |
+| `GET` | `/v1/beta/status?owner=<wallet>` | eligibility, grant state, float health, limits, today's usage |
 | `POST` | `/v1/beta/claim` | `{ code, wallet, issuedAt, signature }` → atomic grant |
+| `POST` | `/v1/beta/swap/prepare` | `{ wallet, usdc, issuedAt, signature }` → `{ swapId, transaction, usdc, sol, rate, expiresAt }` |
+| `POST` | `/v1/beta/swap/submit` | `{ swapId, wallet, transaction }` → submits the tester-signed transaction |
 
 `signature` is base64 of the wallet's ed25519 signature over
 `feras-beta-claim:v1:<wallet>:<CODE>:<issuedAt>`. The server rejects signatures
 older than five minutes, bad signatures, revoked/expired/exhausted codes, and
 second claims.
+
+For a top-up the signed message is
+`feras-beta-swap:v1:<wallet>:<usdc-base-units>:<issuedAt>`. `prepare` reserves the
+daily allowance and returns a transaction the float has already signed (the SOL
+leg from the tester to the float, the ATA create, and the test-USDC leg from the
+float). The tester's wallet adds its signature and `submit` verifies every
+instruction, the fee payer, and both signatures before sending. The tester pays
+the network fee and the associated token account rent.
+
+Top-ups are limited (defaults): 5–100 test-USDC per request, 100 test-USDC and
+0.5 SOL per wallet per day, 1,000 test-USDC across all wallets per day. A prepared
+top-up holds its allowance for 10 minutes; expired requests release it.
 
 ## Safety rails
 
@@ -93,7 +107,12 @@ second claims.
 | `FERAS_BETA_TREASURY_ADDRESS` | — | Expected float address; mismatch disables claims |
 | `FERAS_BETA_STARTER_SOL` | `0.25` | Fallback starter SOL (invites store their own) |
 | `FERAS_BETA_STARTER_USDC` | `25` | Fallback starter test-USDC |
-| `FERAS_BETA_SOL_TO_USDC` | `150` | Phase 2 top-up rate |
+| `FERAS_BETA_SOL_TO_USDC` | `150` | Top-up rate (test-USDC per SOL) |
+| `FERAS_BETA_SWAP_MIN_USDC` | `5` | Smallest top-up |
+| `FERAS_BETA_SWAP_MAX_USDC` | `100` | Largest single top-up |
+| `FERAS_BETA_DAILY_USDC` | `100` | Per-wallet daily test-USDC |
+| `FERAS_BETA_DAILY_SOL` | `0.5` | Per-wallet daily SOL spend |
+| `FERAS_BETA_GLOBAL_DAILY_USDC` | `1000` | All testers per day |
 | `FERAS_BETA_DISABLED` | `false` | Kill switch |
 
 ## Before inviting real testers
@@ -104,11 +123,17 @@ second claims.
    `"canClaim": false` until the float holds at least one full grant.
 3. Create codes and share the links.
 
-## Not built yet (Phase 2)
+## Top-ups in the UI
 
-- SOL → test-USDC top-up: one atomic transaction (SOL transfer + ATA create +
-  transfer from float), fixed rate 1 SOL = 150 test-USDC, per-wallet and global
-  daily caps. The float and `beta_ledger` already model it.
-- Arena CTA that offers "Pay with SOL" instead of "Insufficient USDC".
+Once a tester has claimed, the Profile **Beta credits** card offers +5 / +10 /
++25 test-USDC. In Arena, if the stake is larger than the wallet's test-USDC
+balance, the position button turns into
+`Take White · 5.00 USDC ≈ 0.033 SOL` and runs the top-up first, then the
+position, so the tester sees a single flow. The conversion rate is not exposed as
+a separate step and there is no USDC balance the tester has to manage.
+
+## Not built yet
+
 - Android parity; the mobile `services/solana/swapService.ts` still fakes the
   conversion in AsyncStorage and must be replaced with these endpoints.
+- Throttle by IP (current caps are per wallet and global).

@@ -34,7 +34,12 @@ const USDC_DECIMALS = 6;
 const USDC_BASE = 10n ** BigInt(USDC_DECIMALS);
 const LAMPORTS_PER_SOL = 1_000_000_000;
 const CLAIM_MESSAGE_PREFIX = 'feras-beta-claim:v1';
+const SWAP_MESSAGE_PREFIX = 'feras-beta-swap:v1';
 const MAX_SIGNATURE_SKEW_MS = 5 * 60 * 1000;
+// How long a prepared top-up keeps its reserved daily allowance. After this the
+// ledger row is marked FAILED so the caps are released.
+const SWAP_REQUEST_TTL_MS = 10 * 60 * 1000;
+const DAILY_WINDOW = '24 hours';
 const DEFAULT_STARTER_SOL = 0.25;
 const DEFAULT_STARTER_USDC = 25;
 const DEFAULT_SOL_TO_USDC_RATE = 150;
@@ -69,6 +74,10 @@ function buildClaimMessage({ wallet, code, issuedAt }) {
   return `${CLAIM_MESSAGE_PREFIX}:${wallet}:${normalizeCode(code)}:${issuedAt}`;
 }
 
+function buildSwapMessage({ wallet, usdcBaseUnits, issuedAt }) {
+  return `${SWAP_MESSAGE_PREFIX}:${wallet}:${usdcBaseUnits}:${issuedAt}`;
+}
+
 function verifyWalletSignature({ message, signature, publicKey }) {
   const signatureBytes = Buffer.from(signature, 'base64');
   if (signatureBytes.length !== 64) return false;
@@ -98,6 +107,133 @@ function usdcToBaseUnits(value) {
 
 function baseUnitsToUsdc(value) {
   return Number(BigInt(value)) / Number(USDC_BASE);
+}
+
+/**
+ * Lamports a tester pays for `usdcUnits` test-USDC at `rate` (USDC per SOL).
+ * Rounded up so the float never loses value to truncation.
+ */
+function usdcToLamports(usdcUnits, rate) {
+  const units = BigInt(usdcUnits);
+  if (units <= 0n) throw new Error('Invalid USDC amount');
+  const rateUnits = BigInt(Math.round(Number(rate) * Number(USDC_BASE)));
+  if (rateUnits <= 0n) throw new Error('Invalid SOL/USDC rate');
+  const numerator = units * BigInt(LAMPORTS_PER_SOL);
+  return (numerator + rateUnits - 1n) / rateUnits;
+}
+
+function hintFromError(error, fallback) {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  if (/insufficient funds|insufficient lamports/i.test(message)) {
+    return 'The wallet does not have enough Devnet SOL for this top-up.';
+  }
+  if (/blockhash not found|block height exceeded|has expired/i.test(message)) {
+    return 'The top-up request expired. Please try again.';
+  }
+  return message.trim() || fallback;
+}
+
+function encodeBase58(bytes) {
+  const loaded = require('bs58');
+  const bs58 = loaded.default ?? loaded;
+  return bs58.encode(bytes);
+}
+
+/**
+ * Check that a client-signed top-up transaction is exactly the one the service
+ * prepared: the tester pays SOL to the float, the float pays test-USDC to the
+ * tester's associated token account, and nothing else moves. The treasury's
+ * signature is already on the message, so any edit invalidates it.
+ */
+function verifySwapTransaction(input) {
+  const {
+    serialized,
+    walletKey,
+    mintKey,
+    treasuryKey,
+    treasuryAta,
+    walletAta,
+    lamports,
+    usdcUnits,
+  } = input;
+
+  let transaction;
+  try {
+    transaction = Transaction.from(serialized);
+  } catch {
+    throw httpError(400, 'The top-up transaction could not be read');
+  }
+  if (!transaction.feePayer?.equals(walletKey)) {
+    throw httpError(400, 'The top-up transaction has the wrong fee payer');
+  }
+  try {
+    transaction.verifySignatures();
+  } catch {
+    throw httpError(400, 'The top-up transaction is missing a valid signature');
+  }
+
+  let seenSol = false;
+  let seenUsdc = false;
+  let seenAta = false;
+
+  for (const instruction of transaction.instructions) {
+    if (instruction.programId.equals(SystemProgram.programId)) {
+      if (seenSol || instruction.data.length !== 12 || instruction.data.readUInt32LE(0) !== 2) {
+        throw httpError(400, 'Unexpected instruction in the top-up transaction');
+      }
+      const [from, to] = instruction.keys.map((key) => key.pubkey);
+      const value = instruction.data.readBigUInt64LE(4);
+      if (!from?.equals(walletKey) || !to?.equals(treasuryKey) || value !== BigInt(lamports)) {
+        throw httpError(400, 'The top-up transaction pays the wrong SOL amount');
+      }
+      seenSol = true;
+      continue;
+    }
+
+    if (instruction.programId.equals(TOKEN_PROGRAM_ID)) {
+      if (seenUsdc || instruction.data.length !== 10 || instruction.data[0] !== 12) {
+        throw httpError(400, 'Unexpected token instruction in the top-up transaction');
+      }
+      const [source, mint, destination, authority] = instruction.keys.map((key) => key.pubkey);
+      const amount = instruction.data.readBigUInt64LE(1);
+      const decimals = instruction.data[9];
+      if (
+        !source?.equals(treasuryAta) ||
+        !mint?.equals(mintKey) ||
+        !destination?.equals(walletAta) ||
+        !authority?.equals(treasuryKey) ||
+        amount !== BigInt(usdcUnits) ||
+        decimals !== USDC_DECIMALS
+      ) {
+        throw httpError(400, 'The top-up transaction sends the wrong test-USDC amount');
+      }
+      seenUsdc = true;
+      continue;
+    }
+
+    if (instruction.programId.equals(ASSOCIATED_TOKEN_PROGRAM_ID)) {
+      if (seenAta || instruction.data.length !== 1 || instruction.data[0] !== 1 || instruction.keys.length < 4) {
+        throw httpError(400, 'Unexpected account instruction in the top-up transaction');
+      }
+      const [payer, ata, owner, mint] = instruction.keys.map((key) => key.pubkey);
+      if (!payer?.equals(walletKey) || !ata?.equals(walletAta) || !owner?.equals(walletKey) || !mint?.equals(mintKey)) {
+        throw httpError(400, 'The top-up transaction prepares the wrong token account');
+      }
+      seenAta = true;
+      continue;
+    }
+
+    throw httpError(400, 'Unexpected instruction in the top-up transaction');
+  }
+
+  if (!seenSol || !seenUsdc || !seenAta) {
+    throw httpError(400, 'The top-up transaction is incomplete');
+  }
+
+  const signatureBytes = transaction.signatures[0]?.signature;
+  if (!signatureBytes) throw httpError(400, 'The top-up transaction is not signed');
+
+  return { transaction, signature: encodeBase58(signatureBytes) };
 }
 
 function loadTreasuryKeypair(secret) {
@@ -182,7 +318,7 @@ function createBetaService(options) {
 
   async function status(walletValue) {
     const wallet = parsePublicKey(walletValue, 'wallet').toBase58();
-    const [tester, ledger, float] = await Promise.all([
+    const [tester, ledger, float, usage] = await Promise.all([
       pool.query('SELECT * FROM beta_testers WHERE wallet = $1', [wallet]),
       pool.query(
         `SELECT status, created_at, confirmed_at, tx_signature
@@ -200,6 +336,7 @@ function createBetaService(options) {
             ).catch(() => null),
           ])
         : Promise.resolve([null, null]),
+      readSwapUsage(wallet).catch(() => ({ sol: 0n, usdc: 0n, globalUsdc: 0n })),
     ]);
 
     const grant = ledger.rows[0] ?? null;
@@ -210,6 +347,14 @@ function createBetaService(options) {
       treasury && floatSol !== null && floatUsdc !== null &&
       floatSol >= limits.starterSol + 0.01 && floatUsdc >= limits.starterUsdc,
     );
+
+    // Remaining top-up allowance, expressed in test-USDC. The SOL side of the
+    // cap can bind first, so report the smaller of the two.
+    const usedUsdc = Number(usage.usdc) / Number(USDC_BASE);
+    const usedSol = Number(usage.sol) / LAMPORTS_PER_SOL;
+    const usdcByDaily = Math.max(0, limits.dailyUsdc - usedUsdc);
+    const usdcBySol = Math.max(0, (limits.dailySol - usedSol) * limits.solToUsdcRate);
+    const usdcRemaining = Math.floor(Math.min(usdcByDaily, usdcBySol) * 100) / 100;
 
     return {
       wallet,
@@ -235,6 +380,11 @@ function createBetaService(options) {
       canClaim: Boolean(
         treasury && floatReady && !row?.blocked && !row?.claimed_at && !grant,
       ),
+      canTopUp: Boolean(
+        treasury && row?.claimed_at && !row?.blocked &&
+        floatUsdc !== null && floatUsdc >= limits.swapMinUsdc &&
+        usdcRemaining >= limits.swapMinUsdc,
+      ),
       limits: {
         starterSol: limits.starterSol,
         starterUsdc: limits.starterUsdc,
@@ -243,6 +393,11 @@ function createBetaService(options) {
         swapMaxUsdc: limits.swapMaxUsdc,
         dailyUsdc: limits.dailyUsdc,
         dailySol: limits.dailySol,
+      },
+      usage: {
+        usdcToday: Math.round(usedUsdc * Number(USDC_BASE)) / Number(USDC_BASE),
+        solToday: Math.round(usedSol * LAMPORTS_PER_SOL) / LAMPORTS_PER_SOL,
+        usdcRemaining,
       },
       float: {
         address: treasuryAddress,
@@ -417,6 +572,354 @@ function createBetaService(options) {
     };
   }
 
+  async function expireSwapRequests() {
+    await pool.query(
+      `UPDATE beta_ledger
+          SET status = 'FAILED', error = 'Top-up request expired'
+        WHERE kind = 'SWAP' AND status = 'PENDING'
+          AND created_at < NOW() - ($1 * INTERVAL '1 millisecond')`,
+      [SWAP_REQUEST_TTL_MS],
+    );
+  }
+
+  async function readSwapUsage(walletAddress, client = pool) {
+    const [walletRows, globalRows] = await Promise.all([
+      client.query(
+        `SELECT COALESCE(SUM(sol_lamports), 0)::text AS sol,
+                COALESCE(SUM(usdc_base_units), 0)::text AS usdc
+           FROM beta_ledger
+          WHERE wallet = $1 AND kind = 'SWAP' AND status <> 'FAILED'
+            AND created_at > NOW() - INTERVAL '24 hours'`,
+        [walletAddress],
+      ),
+      client.query(
+        `SELECT COALESCE(SUM(usdc_base_units), 0)::text AS usdc
+           FROM beta_ledger
+          WHERE kind = 'SWAP' AND status <> 'FAILED'
+            AND created_at > NOW() - INTERVAL '24 hours'`,
+      ),
+    ]);
+    return {
+      sol: BigInt(walletRows.rows[0].sol),
+      usdc: BigInt(walletRows.rows[0].usdc),
+      globalUsdc: BigInt(globalRows.rows[0].usdc),
+    };
+  }
+
+  function topUpError(reason) {
+    return httpError(429, reason);
+  }
+
+  /**
+   * Reserve a top-up and return a treasury-signed Solana transaction for the
+   * tester to sign. The SOL and test-USDC legs settle atomically or not at all.
+   */
+  async function prepareSwap({ wallet, usdc, issuedAt, signature }) {
+    if (!treasury) throw httpError(503, disabledReason || 'Beta credits are not enabled');
+
+    const walletKey = parsePublicKey(wallet, 'wallet');
+    const walletAddress = walletKey.toBase58();
+
+    const issued = Number(issuedAt);
+    if (!Number.isSafeInteger(issued) || Math.abs(Date.now() - issued) > MAX_SIGNATURE_SKEW_MS) {
+      throw httpError(401, 'The wallet signature expired; please try again');
+    }
+
+    const requested = Number(usdc);
+    if (!Number.isFinite(requested) || requested <= 0) {
+      throw httpError(400, 'Choose how much test credit to add');
+    }
+    const usdcUnits = usdcToBaseUnits(requested);
+    if (usdcUnits <= 0n) throw httpError(400, 'Choose how much test credit to add');
+    const usdcValue = Number(usdcUnits) / Number(USDC_BASE);
+
+    if (usdcValue < limits.swapMinUsdc) {
+      throw httpError(400, `The minimum top-up is ${limits.swapMinUsdc} test-USDC`);
+    }
+    if (usdcValue > limits.swapMaxUsdc) {
+      throw httpError(400, `The maximum top-up is ${limits.swapMaxUsdc} test-USDC`);
+    }
+
+    const message = buildSwapMessage({ wallet: walletAddress, usdcBaseUnits: usdcUnits.toString(), issuedAt: issued });
+    if (!verifyWalletSignature({ message, signature, publicKey: walletKey })) {
+      throw httpError(401, 'The wallet signature is invalid');
+    }
+
+    const tester = (await pool.query('SELECT * FROM beta_testers WHERE wallet = $1', [walletAddress])).rows[0];
+    if (!tester) throw httpError(403, 'Beta credits are invite-only');
+    if (tester.blocked) throw httpError(403, 'This wallet is not eligible for beta credits');
+    if (!tester.claimed_at) throw httpError(403, 'Claim your starter credits before topping up');
+
+    await expireSwapRequests();
+
+    const lamports = usdcToLamports(usdcUnits, limits.solToUsdcRate);
+    const dailyUsdcUnits = usdcToBaseUnits(limits.dailyUsdc);
+    const dailySolLamports = BigInt(solToLamports(limits.dailySol));
+    const globalUsdcUnits = usdcToBaseUnits(limits.globalDailyUsdc);
+
+    const treasuryAta = getAssociatedTokenAddressSync(
+      mintKey, treasury.publicKey, true, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
+    );
+    const floatBalance = await connection.getTokenAccountBalance(treasuryAta, 'confirmed').catch(() => null);
+    if (!floatBalance || BigInt(floatBalance.value.amount) < usdcUnits) {
+      throw httpError(503, 'The beta float needs a refill before more credit can be added');
+    }
+
+    const client = await pool.connect();
+    let swapId;
+    try {
+      await client.query('BEGIN');
+      // One lock for all top-ups keeps the per-wallet and global caps honest
+      // even when two requests arrive at the same moment.
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['feras_beta_swap']);
+      const usage = await readSwapUsage(walletAddress, client);
+
+      if (usage.usdc + usdcUnits > dailyUsdcUnits) {
+        throw topUpError(`Daily top-up limit reached. You can add ${limits.dailyUsdc} test-USDC per day.`);
+      }
+      if (usage.sol + lamports > dailySolLamports) {
+        throw topUpError('Daily SOL spend limit reached. Try again tomorrow.');
+      }
+      if (usage.globalUsdc + usdcUnits > globalUsdcUnits) {
+        throw topUpError('The beta float reached its daily limit. Try again later.');
+      }
+
+      const inserted = await client.query(
+        `INSERT INTO beta_ledger
+           (wallet, kind, status, sol_lamports, usdc_base_units, usdc_mint, metadata)
+         VALUES ($1, 'SWAP', 'PENDING', $2, $3, $4, $5)
+         RETURNING id`,
+        [
+          walletAddress,
+          lamports.toString(),
+          usdcUnits.toString(),
+          mintKey.toBase58(),
+          JSON.stringify({ rate: limits.solToUsdcRate, issuedAt: issued }),
+        ],
+      );
+      swapId = inserted.rows[0].id;
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
+
+    try {
+      const walletAta = getAssociatedTokenAddressSync(
+        mintKey, walletKey, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
+      );
+      const latest = await connection.getLatestBlockhash('confirmed');
+      const transaction = new Transaction();
+      transaction.feePayer = walletKey;
+      transaction.recentBlockhash = latest.blockhash;
+      transaction.add(SystemProgram.transfer({
+        fromPubkey: walletKey,
+        toPubkey: treasury.publicKey,
+        lamports: Number(lamports),
+      }));
+      transaction.add(createAssociatedTokenAccountIdempotentInstruction(
+        walletKey,
+        walletAta,
+        walletKey,
+        mintKey,
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+      ));
+      transaction.add(createTransferCheckedInstruction(
+        treasuryAta,
+        mintKey,
+        walletAta,
+        treasury.publicKey,
+        usdcUnits,
+        USDC_DECIMALS,
+        [],
+        TOKEN_PROGRAM_ID,
+      ));
+      transaction.partialSign(treasury);
+
+      const serialized = transaction.serialize({
+        requireAllSignatures: false,
+        verifySignatures: false,
+      });
+
+      await pool.query(
+        `UPDATE beta_ledger SET metadata = metadata || $2::jsonb WHERE id = $1`,
+        [swapId, JSON.stringify({
+          blockhash: latest.blockhash,
+          lastValidBlockHeight: latest.lastValidBlockHeight,
+        })],
+      );
+
+      return {
+        swapId,
+        transaction: serialized.toString('base64'),
+        usdc: usdcValue,
+        sol: Number(lamports) / LAMPORTS_PER_SOL,
+        rate: limits.solToUsdcRate,
+        expiresAt: new Date(Date.now() + SWAP_REQUEST_TTL_MS).toISOString(),
+      };
+    } catch (error) {
+      await pool.query(
+        `UPDATE beta_ledger SET status = 'FAILED', error = $2 WHERE id = $1`,
+        [swapId, hintFromError(error, 'The top-up could not be prepared')],
+      ).catch(() => undefined);
+      throw httpError(502, hintFromError(error, 'The top-up could not be prepared'));
+    }
+  }
+
+  /**
+   * Accept the tester-signed transaction, verify it instruction by instruction,
+   * submit it, and settle the ledger row.
+   */
+  async function submitSwap({ swapId, wallet, transaction }) {
+    if (!treasury) throw httpError(503, disabledReason || 'Beta credits are not enabled');
+
+    const walletKey = parsePublicKey(wallet, 'wallet');
+    const walletAddress = walletKey.toBase58();
+    const id = Number(swapId);
+    if (!Number.isSafeInteger(id) || id <= 0) throw httpError(400, 'A top-up request is required');
+    if (typeof transaction !== 'string' || transaction.length < 100) {
+      throw httpError(400, 'The signed top-up transaction is required');
+    }
+
+    const row = (await pool.query(
+      `SELECT * FROM beta_ledger WHERE id = $1 AND wallet = $2 AND kind = 'SWAP'`,
+      [id, walletAddress],
+    )).rows[0];
+    if (!row) throw httpError(404, 'Top-up request not found');
+
+    if (row.status === 'CONFIRMED') {
+      return {
+        status: 'CONFIRMED',
+        swapId: id,
+        signature: row.tx_signature,
+        explorerUrl: row.tx_signature
+          ? `https://explorer.solana.com/tx/${row.tx_signature}?cluster=devnet`
+          : null,
+        usdc: baseUnitsToUsdc(row.usdc_base_units),
+        sol: Number(row.sol_lamports) / LAMPORTS_PER_SOL,
+      };
+    }
+    if (row.status !== 'PENDING') throw httpError(409, 'This top-up request is already closed');
+
+    const age = Date.now() - new Date(row.created_at).getTime();
+    if (age > SWAP_REQUEST_TTL_MS) {
+      await pool.query(
+        `UPDATE beta_ledger SET status = 'FAILED', error = 'Top-up request expired' WHERE id = $1`,
+        [id],
+      );
+      throw httpError(410, 'The top-up request expired. Please try again.');
+    }
+
+    const metadata = row.metadata ?? {};
+    const treasuryAta = getAssociatedTokenAddressSync(
+      mintKey, treasury.publicKey, true, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
+    );
+    const walletAta = getAssociatedTokenAddressSync(
+      mintKey, walletKey, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
+    );
+
+    let verified;
+    try {
+      verified = verifySwapTransaction({
+        serialized: Buffer.from(transaction, 'base64'),
+        walletKey,
+        mintKey,
+        treasuryKey: treasury.publicKey,
+        treasuryAta,
+        walletAta,
+        lamports: BigInt(row.sol_lamports),
+        usdcUnits: BigInt(row.usdc_base_units),
+      });
+    } catch (error) {
+      if (error?.status === 400) throw error;
+      throw httpError(400, 'The signed top-up transaction could not be verified');
+    }
+
+    let signature = verified.signature;
+    try {
+      await connection.sendRawTransaction(verified.transaction.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+        maxRetries: 3,
+      });
+    } catch (error) {
+      // The tester may have submitted the same transaction directly; if it is
+      // on-chain, treat it as success instead of failing their top-up.
+      const status = await connection.getSignatureStatuses([signature]).catch(() => null);
+      const value = status?.value?.[0];
+      if (value?.err) {
+        const reason = hintFromError(error, 'The top-up transaction failed on-chain');
+        await pool.query(
+          `UPDATE beta_ledger SET status = 'FAILED', error = $2, tx_signature = $3 WHERE id = $1`,
+          [id, reason, signature],
+        ).catch(() => undefined);
+        throw httpError(502, reason);
+      }
+      if (!value) {
+        const reason = hintFromError(error, 'The top-up could not be submitted');
+        await pool.query(
+          `UPDATE beta_ledger SET status = 'FAILED', error = $2 WHERE id = $1`,
+          [id, reason],
+        ).catch(() => undefined);
+        throw httpError(502, reason);
+      }
+    }
+
+    try {
+      const blockhash = typeof metadata.blockhash === 'string' ? metadata.blockhash : verified.transaction.recentBlockhash;
+      const lastValidBlockHeight = Number(metadata.lastValidBlockHeight);
+      if (blockhash && Number.isFinite(lastValidBlockHeight)) {
+        const confirmation = await connection.confirmTransaction(
+          { signature, blockhash, lastValidBlockHeight },
+          'confirmed',
+        );
+        if (confirmation.value.err) throw new Error('The top-up transaction failed on-chain');
+      } else {
+        // Fallback: poll the signature status if the metadata is incomplete.
+        const deadline = Date.now() + 45_000;
+        for (;;) {
+          const status = await connection.getSignatureStatuses([signature]);
+          const value = status.value[0];
+          if (value?.err) throw new Error('The top-up transaction failed on-chain');
+          if (value?.confirmationStatus === 'confirmed' || value?.confirmationStatus === 'finalized') break;
+          if (Date.now() > deadline) throw new Error('The top-up is still confirming; refresh in a moment');
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+        }
+      }
+    } catch (error) {
+      const status = await connection.getSignatureStatuses([signature]).catch(() => null);
+      const value = status?.value?.[0];
+      if (!value?.err && (value?.confirmationStatus === 'confirmed' || value?.confirmationStatus === 'finalized')) {
+        // Landed despite the confirmation timeout.
+      } else {
+        const reason = hintFromError(error, 'The top-up could not be confirmed');
+        await pool.query(
+          `UPDATE beta_ledger SET status = 'FAILED', error = $2, tx_signature = $3 WHERE id = $1`,
+          [id, reason, signature],
+        ).catch(() => undefined);
+        throw httpError(502, reason);
+      }
+    }
+
+    await pool.query(
+      `UPDATE beta_ledger SET status = 'CONFIRMED', tx_signature = $2, confirmed_at = NOW() WHERE id = $1`,
+      [id, signature],
+    );
+    await pool.query('UPDATE beta_testers SET last_seen_at = NOW() WHERE wallet = $1', [walletAddress]);
+
+    return {
+      status: 'CONFIRMED',
+      swapId: id,
+      signature,
+      explorerUrl: `https://explorer.solana.com/tx/${signature}?cluster=devnet`,
+      usdc: baseUnitsToUsdc(row.usdc_base_units),
+      sol: Number(row.sol_lamports) / LAMPORTS_PER_SOL,
+    };
+  }
+
   async function close() {
     await pool.end();
   }
@@ -424,6 +927,8 @@ function createBetaService(options) {
   return {
     status,
     claim,
+    prepareSwap,
+    submitSwap,
     close,
     enabled: Boolean(treasury),
     disabledReason,
@@ -435,13 +940,17 @@ function createBetaService(options) {
 
 module.exports = {
   CLAIM_MESSAGE_PREFIX,
+  SWAP_MESSAGE_PREFIX,
   USDC_DECIMALS,
   buildClaimMessage,
+  buildSwapMessage,
   createBetaService,
   httpError,
   normalizeCode,
   readLimits,
   solToLamports,
   usdcToBaseUnits,
+  usdcToLamports,
+  verifySwapTransaction,
   verifyWalletSignature,
 };

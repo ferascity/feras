@@ -412,6 +412,18 @@ async function handle(request, response) {
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
       return json(response, 200, await betaService.claim(body));
     }
+    if (betaService && request.method === 'POST' && url.pathname === '/v1/beta/swap/prepare') {
+      const chunks = [];
+      for await (const chunk of request) chunks.push(chunk);
+      const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+      return json(response, 200, await betaService.prepareSwap(body));
+    }
+    if (betaService && request.method === 'POST' && url.pathname === '/v1/beta/swap/submit') {
+      const chunks = [];
+      for await (const chunk of request) chunks.push(chunk);
+      const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+      return json(response, 200, await betaService.submitSwap(body));
+    }
     const registry = readRegistry();
     if (request.method === 'GET' && url.pathname === '/v1/matches') {
       const status = url.searchParams.get('status');
