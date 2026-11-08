@@ -14,7 +14,6 @@
  */
 
 const crypto = require('node:crypto');
-const nacl = require('tweetnacl');
 const { Pool } = require('pg');
 const {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -82,13 +81,27 @@ function buildSwapMessage({ wallet, usdcBaseUnits, issuedAt }) {
 function verifyWalletSignature({ message, signature, publicKey }) {
   const signatureBytes = Buffer.from(signature, 'base64');
   if (signatureBytes.length !== 64) return false;
-  const key = crypto.createPublicKey({
-    key: Buffer.concat([ED25519_SPKI_PREFIX, publicKey.toBuffer()]),
-    format: 'der',
-    type: 'spki',
+  return verifyEd25519({
+    data: Buffer.from(message, 'utf8'),
+    signature: signatureBytes,
+    publicKey,
   });
+}
+
+/**
+ * Verify a raw ed25519 signature with the public key Solana uses (32 raw
+ * bytes). Building the SPKI envelope by hand avoids pulling in a native or
+ * third-party verifier.
+ */
+function verifyEd25519({ data, signature, publicKey }) {
+  if (!signature || signature.length !== 64) return false;
   try {
-    return crypto.verify(null, Buffer.from(message, 'utf8'), key, signatureBytes);
+    const key = crypto.createPublicKey({
+      key: Buffer.concat([ED25519_SPKI_PREFIX, publicKey.toBuffer()]),
+      format: 'der',
+      type: 'spki',
+    });
+    return crypto.verify(null, data, key, signature);
   } catch {
     return false;
   }
@@ -172,17 +185,11 @@ function verifySwapTransaction(input) {
   if (!walletEntry?.signature) {
     throw httpError(401, 'The top-up transaction is not signed by the wallet');
   }
-  let validSignature = false;
-  try {
-    validSignature = nacl.sign.detached.verify(
-      transaction.serializeMessage(),
-      walletEntry.signature,
-      walletKey.toBytes(),
-    );
-  } catch {
-    validSignature = false;
-  }
-  if (!validSignature) {
+  if (!verifyEd25519({
+    data: transaction.serializeMessage(),
+    signature: walletEntry.signature,
+    publicKey: walletKey,
+  })) {
     throw httpError(401, 'The top-up transaction has an invalid wallet signature');
   }
 
