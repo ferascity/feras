@@ -2,7 +2,8 @@
 
 The beta is invite-only. A tester signs in with Privy, gets an embedded Solana
 wallet, and claims a one-time starter grant of **25 test-USDC + 0.25 SOL**.
-Later top-ups will be paid in SOL and converted invisibly (Phase 2).
+Later top-ups are paid in Devnet SOL and converted invisibly at a fixed rate
+(1 SOL = 150 test-USDC).
 
 Test-USDC is **valueless devnet credit**. It is not Circle USDC and cannot be
 redeemed. The UI labels it "Devnet test credit".
@@ -40,8 +41,12 @@ docker compose --env-file .env.aws -f docker-compose.yml -f docker-compose.aws.y
 ... node scripts/create-beta-invites.js --revoke FERAS-BETA-7K2M
 ```
 
-Set `FERAS_BETA_WEB_ORIGIN=https://app.example.com` so the printed links are
-production links instead of `http://localhost:5173`.
+Set `FERAS_BETA_WEB_ORIGIN=https://dllxy64bv69x8.cloudfront.net` so the printed
+links are production links instead of `http://localhost:5173`.
+
+The web app is deployed at **https://dllxy64bv69x8.cloudfront.net** (S3 bucket
+`feras-web-626771561529` behind CloudFront `E5L31UR6TVPYT`). Add that origin to
+the Privy dashboard's allowed origins before inviting testers.
 
 ## The beta float
 
