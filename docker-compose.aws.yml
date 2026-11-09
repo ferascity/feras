@@ -44,6 +44,10 @@ services:
       FERAS_TREASURY_TOKEN_ACCOUNT: ${FERAS_TREASURY_TOKEN_ACCOUNT:-2QVchBYWwYCD3gmvidgeTmT85svxXv6EXkLtjLjoJak1}
       FERAS_PLATFORM_AUTHORITY: ${FERAS_PLATFORM_AUTHORITY:-HgVKTqd9GzfaPq9sp2uMJD9i8WTGmc1Z52Xt8jF27A85}
       FERAS_SETTLEMENT_AUTHORITY: ${FERAS_SETTLEMENT_AUTHORITY:-49zdSpbUVUfN9JNSaEGCSJwZNtFyTDh8H2DwkVXhUCHq}
+    volumes:
+      # Automation keypairs live outside the image. Mount the directory that
+      # holds feras-platform.json and feras-settlement.json read-only.
+      - /opt/feras/secrets:/run/secrets:ro
 
   migrate:
     environment:

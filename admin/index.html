@@ -883,7 +883,7 @@
           <div class="brand-mark"><span class="brand-glyph">F</span></div>
           <div>
             <div class="brand-title">Feras Authority Console</div>
-            <div class="brand-subtitle">Non-Custodial Market & Platform Operations</div>
+            <div class="brand-subtitle">    Platform Operations</div>
           </div>
         </div>
         <div class="nav-badges">
@@ -891,7 +891,7 @@
             <span class="status-dot"></span>
             <span>Solana Devnet</span>
           </div>
-          <div class="badge badge-secure">Loopback 127.0.0.1</div>
+          <!--<div class="badge badge-secure">Loopback 127.0.0.1</div>-->
         </div>
       </div>
     </header>
@@ -901,9 +901,9 @@
       <div class="page-header">
         <div class="page-eyebrow">Local Infrastructure</div>
         <h1 class="page-title">Platform Operations</h1>
-        <p class="page-desc">
+        <!--<p class="page-desc">
           Authorized developer environment for program lifecycle, market creation, locking, and test-credit distribution. Wallet signing material remains securely in your browser extension.
-        </p>
+        </p>-->
       </div>
 
       <!-- Live Feedback Banner -->
@@ -928,6 +928,7 @@
         <button type="button" class="segment-btn" data-filter="market-create">Create Market</button>
         <button type="button" class="segment-btn" data-filter="market-lock">Lock Market</button>
         <button type="button" class="segment-btn" data-filter="faucet">USDC Faucet</button>
+        <button type="button" class="segment-btn" data-filter="authority">Platform Authority</button>
         <button type="button" class="segment-btn" data-filter="config">Config & Auth</button>
       </nav>
 
@@ -1219,6 +1220,39 @@
         </div>
       </section>
 
+      <!-- Section: Platform Authority Handoff -->
+      <section class="section-group" data-section="all,authority,config">
+        <div class="section-header-row">
+          <div>
+            <div class="section-eyebrow">Automation • Two-Step Authority Transfer</div>
+            <h2 class="section-title">Platform Authority Handoff</h2>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <p class="section-desc">
+              Moves CREATE and LOCK signing from the browser platform wallet to the server-held automation
+              keypair. The current authority signs <code>propose_authority</code> here; the coordinator then
+              completes <code>accept_authority</code> with the new key so unattended rounds can run.
+            </p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="control-label" for="next-authority">New Platform Authority</label>
+                <input id="next-authority" type="text" spellcheck="false" autocapitalize="off" placeholder="Automation keypair address" />
+                <span class="control-help">Must differ from the settlement and treasury authorities. The key never enters this browser.</span>
+              </div>
+            </div>
+            <div id="authority-review" class="grid" style="margin-top: 16px;"></div>
+          </div>
+          <div class="card-footer">
+            <div class="actions">
+              <button id="authority-connect" type="button" class="secondary">Connect Current Authority</button>
+              <button id="authority-sign" type="button" disabled>Propose New Authority</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Section: Upgrade Authority Handoff -->
       <section class="section-group" data-section="all,config">
         <div class="section-header-row">
@@ -1250,6 +1284,7 @@
         status: null,
         upgradeWallet: null,
         platformWallet: null,
+        authorityWallet: null,
         marketWallet: null,
         lockWallet: null,
         distributionWallet: null,
@@ -1333,6 +1368,8 @@
           'Current Upgrade Authority': state.status.currentUpgradeAuthority || 'None',
           'Expected Upgrade Authority': state.status.expectedUpgradeAuthority,
           'Platform Authority': state.status.platformAuthority,
+          'On-Chain Authority': state.status.onChainAuthority || 'Unavailable',
+          'Pending Authority': state.status.pendingAuthority || 'None',
           'Config PDA': state.status.configPda,
           'Config Status': state.status.configInitialized ? 'INITIALIZED (Active)' : 'PENDING (Uninitialized)',
         });
@@ -1342,6 +1379,13 @@
           'ProgramData Account': state.status.programData,
           'New Upgrade Authority': state.status.expectedUpgradeAuthority,
           'Instruction': 'Upgradeable BPF Loader: SetAuthorityChecked',
+        });
+
+        render($('authority-review'), {
+          'Configured Signer': state.status.platformAuthority,
+          'On-Chain Authority': state.status.onChainAuthority || 'Unavailable',
+          'Pending Authority': state.status.pendingAuthority || 'None',
+          'Next Automation Address': $('next-authority').value.trim() || 'Not set',
         });
 
         if (state.status.configInitialized) {
@@ -1594,6 +1638,25 @@
             'Tip': 'Make sure you selected an active open market (e.g. gp-001) whose lock time has arrived.'
           });
         }
+      };
+
+      $('authority-connect').onclick = async () => {
+        try {
+          state.authorityWallet = await connect(state.status.platformAuthority, 'current platform authority');
+          $('authority-sign').disabled = false;
+          message('Current platform authority connected.');
+        } catch (error) { message(error.message, true); }
+      };
+
+      $('authority-sign').onclick = async () => {
+        try {
+          const newAuthority = $('next-authority').value.trim();
+          if (!newAuthority) throw new Error('Enter the new platform authority address first.');
+          if (!confirm(`Propose this address as the new platform authority?\n\n${newAuthority}\n\nAfter it confirms, the server must sign accept_authority with that key.`)) return;
+          const result = await signAndSubmit(state.authorityWallet, '/api/authority/prepare', '/api/authority/submit', { newAuthority });
+          message(`Authority transfer proposed on Devnet!\nSignature: ${result.signature}\nNext: accept_authority with the new key.`);
+          await load();
+        } catch (error) { message(error.message, true); }
       };
 
       $('distribution-connect').onclick = async () => {

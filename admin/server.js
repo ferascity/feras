@@ -32,9 +32,11 @@ const IDL = require(path.join(ROOT, 'target/idl/feras_market.json'));
 const INITIALIZE_CONFIG = IDL.instructions.find((instruction) => instruction.name === 'initialize_config');
 const CREATE_MARKET = IDL.instructions.find((instruction) => instruction.name === 'create_market');
 const LOCK_MARKET = IDL.instructions.find((instruction) => instruction.name === 'lock_market');
+const PROPOSE_AUTHORITY = IDL.instructions.find((instruction) => instruction.name === 'propose_authority');
 const marketDrafts = new Map();
 const marketLockDrafts = new Map();
 const distributionDrafts = new Map();
+const authorityDrafts = new Map();
 
 function fail(message, status = 400) {
   const error = new Error(message);
@@ -599,6 +601,84 @@ function assertExactInitializeTransaction(transaction, config) {
   }
 }
 
+async function prepareAuthorityProposal(config, body) {
+  const newAuthorityValue = typeof body?.newAuthority === 'string' ? body.newAuthority.trim() : '';
+  if (!newAuthorityValue) throw fail('A new platform authority public key is required');
+  const newAuthority = publicKey(newAuthorityValue, 'newAuthority');
+  if (newAuthority.equals(config.platformAuthority)) {
+    throw fail('The new authority must differ from the current platform authority', 409);
+  }
+  if (newAuthority.equals(config.settlementAuthority) || newAuthority.equals(config.treasuryAuthority)) {
+    throw fail('The new authority must be distinct from the settlement and treasury authorities', 409);
+  }
+
+  const rpc = connection(config);
+  const { configPda } = deriveAddresses(config);
+  const account = await rpc.getAccountInfo(configPda, 'confirmed');
+  if (!account || !account.owner.equals(config.programId) || account.data.length < 72) {
+    throw fail('The platform config PDA is missing or has an unexpected layout', 409);
+  }
+  const onChainAuthority = new PublicKey(account.data.subarray(8, 40));
+  if (!onChainAuthority.equals(config.platformAuthority)) {
+    throw fail(`On-chain platform authority is ${onChainAuthority.toBase58()}, not the configured signer`, 409);
+  }
+  const pending = new PublicKey(account.data.subarray(40, 72));
+
+  const latest = await rpc.getLatestBlockhash('confirmed');
+  const transaction = new Transaction();
+  transaction.feePayer = config.platformAuthority;
+  transaction.recentBlockhash = latest.blockhash;
+  transaction.lastValidBlockHeight = latest.lastValidBlockHeight;
+  transaction.add(new TransactionInstruction({
+    programId: config.programId,
+    keys: [
+      { pubkey: configPda, isSigner: false, isWritable: true },
+      { pubkey: config.platformAuthority, isSigner: true, isWritable: true },
+    ],
+    data: Buffer.concat([Buffer.from(PROPOSE_AUTHORITY.discriminator), newAuthority.toBuffer()]),
+  }));
+
+  const draftId = randomBytes(16).toString('hex');
+  authorityDrafts.set(draftId, {
+    configPda: configPda.toBase58(),
+    currentAuthority: onChainAuthority.toBase58(),
+    pendingAuthority: pending.equals(PublicKey.default) ? null : pending.toBase58(),
+    newAuthority: newAuthority.toBase58(),
+  });
+  return {
+    transaction: serializeTransaction(transaction),
+    draftId,
+    review: { cluster: 'devnet', instruction: 'Feras: propose_authority', ...authorityDrafts.get(draftId) },
+  };
+}
+
+function assertExactAuthorityProposal(transaction, config, draft) {
+  if (!transaction.feePayer?.equals(config.platformAuthority)) {
+    throw fail('Rejected: fee payer must be the current platform authority', 409);
+  }
+  const instructions = transaction.instructions.filter((ix) => !ix.programId.equals(COMPUTE_BUDGET_PROGRAM_ID));
+  if (instructions.length !== 1) {
+    throw fail('Rejected: the proposal must contain exactly one authority instruction', 409);
+  }
+  const instruction = instructions[0];
+  if (!instruction.programId.equals(config.programId) ||
+      instruction.data.length !== 40 ||
+      !instruction.data.subarray(0, 8).equals(Buffer.from(PROPOSE_AUTHORITY.discriminator))) {
+    throw fail('Rejected: transaction is not a Feras propose_authority instruction', 409);
+  }
+  const proposed = new PublicKey(instruction.data.subarray(8, 40)).toBase58();
+  if (proposed !== draft.newAuthority) {
+    throw fail('Rejected: proposed authority differs from the reviewed address', 409);
+  }
+  const expectedKeys = [
+    { pubkey: new PublicKey(draft.configPda), isSigner: false, isWritable: true },
+    { pubkey: config.platformAuthority, isSigner: true, isWritable: false },
+  ];
+  if (!accountMetaCompatible(instruction, expectedKeys)) {
+    throw fail('Rejected: proposal accounts differ from the reviewed authority transfer', 409);
+  }
+}
+
 async function submitTransaction(config, encoded, operation, draftId) {
   const rpc = connection(config);
   const transaction = decodeTransaction(encoded);
@@ -639,6 +719,14 @@ async function submitTransaction(config, encoded, operation, draftId) {
     assertExactDistributionTransaction(transaction, config, draft);
     const signature = transaction.signatures.find((entry) => entry.publicKey.equals(config.distributionAuthority))?.signature;
     if (!signature || !ed25519.verify(signature, transaction.serializeMessage(), config.distributionAuthority.toBytes())) throw fail('Rejected: distribution-authority signature is missing or invalid', 409);
+  } else if (operation === 'authority-propose') {
+    const draft = authorityDrafts.get(draftId || '');
+    if (!draft) throw fail('The reviewed authority draft expired; prepare it again', 409);
+    assertExactAuthorityProposal(transaction, config, draft);
+    const signature = transaction.signatures.find((entry) => entry.publicKey.equals(config.platformAuthority))?.signature;
+    if (!signature || !ed25519.verify(signature, transaction.serializeMessage(), config.platformAuthority.toBytes())) {
+      throw fail('Rejected: platform-authority signature is missing or invalid', 409);
+    }
   } else {
     assertExactInitializeTransaction(transaction, config);
     const { configPda } = deriveAddresses(config);
@@ -666,6 +754,14 @@ async function status(config) {
     currentUpgradeAuthority(rpc, programData),
     rpc.getAccountInfo(configPda, 'confirmed'),
   ]);
+  let onChainAuthority = null;
+  let pendingAuthority = null;
+  if (configAccount && configAccount.owner.equals(config.programId) && configAccount.data.length >= 72) {
+    const authority = new PublicKey(configAccount.data.subarray(8, 40));
+    const pending = new PublicKey(configAccount.data.subarray(40, 72));
+    onChainAuthority = authority.toBase58();
+    pendingAuthority = pending.equals(PublicKey.default) ? null : pending.toBase58();
+  }
   return {
     cluster: 'devnet',
     programId: config.programId.toBase58(),
@@ -675,6 +771,8 @@ async function status(config) {
     configPda: configPda.toBase58(),
     configInitialized: Boolean(configAccount),
     platformAuthority: config.platformAuthority.toBase58(),
+    onChainAuthority,
+    pendingAuthority,
   };
 }
 
@@ -731,6 +829,8 @@ const server = http.createServer(async (request, response) => {
     if (request.method === 'POST' && request.url === '/api/market/lock/submit') { const body = await readJson(request); return sendJson(response, 200, await submitTransaction(config, body.transaction, 'market-lock', body.draftId)); }
     if (request.method === 'POST' && request.url === '/api/distribution/prepare') return sendJson(response, 200, await prepareDistribution(config, await readJson(request)));
     if (request.method === 'POST' && request.url === '/api/distribution/submit') { const body = await readJson(request); return sendJson(response, 200, await submitTransaction(config, body.transaction, 'distribution', body.draftId)); }
+    if (request.method === 'POST' && request.url === '/api/authority/prepare') return sendJson(response, 200, await prepareAuthorityProposal(config, await readJson(request)));
+    if (request.method === 'POST' && request.url === '/api/authority/submit') { const body = await readJson(request); return sendJson(response, 200, await submitTransaction(config, body.transaction, 'authority-propose', body.draftId)); }
     if (request.method === 'GET' && (request.url === '/' || request.url === '/index.html')) {
       const nonce = randomBytes(16).toString('base64');
       const body = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8').replace('{{CSP_NONCE}}', nonce);
