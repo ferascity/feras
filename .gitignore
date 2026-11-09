@@ -21,3 +21,5 @@ docs/
 scripts/x
 landing-page/
 .vscode/
+# The web app lives in its own repository: ferascity/web
+ferasweb/
