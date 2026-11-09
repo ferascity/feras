@@ -8,6 +8,8 @@ const MARKET_SEED = Buffer.from('market');
 const discriminator = (name) => crypto.createHash('sha256').update(`global:${name}`).digest().subarray(0, 8);
 const u64 = (value) => { const out = Buffer.alloc(8); out.writeBigUInt64LE(BigInt(value)); return out; };
 const outcome = (result) => ({ '1-0': 0, '1/2-1/2': 1, '0-1': 2 }[result]);
+// feras_market::MarketError::NoWinningPool
+const NO_WINNING_POOL = 6022;
 
 function required(name) { const value = process.env[name]?.trim(); if (!value) throw new Error(`${name} is required for automated market signing`); return value; }
 function loadKeypair(path, name) {
@@ -38,14 +40,32 @@ class DevnetMarketSigner {
   async submit(command) {
     const match = await this.repository.getMatch(command.match_id);
     if (!match) throw new Error('Market command references a missing match');
-    const { transaction, signer, attachedMarket } = this.build(command, match);
+    try {
+      return await this.send(this.build(command, match), match);
+    } catch (error) {
+      // A market cannot be settled unless the winning outcome holds positions.
+      // Cancelling instead enables refunds for everyone who did take a position.
+      if (command.command_type === 'SETTLE' && error.customCode === NO_WINNING_POOL) {
+        const result = await this.send(this.build({ ...command, command_type: 'CANCEL' }, match), match);
+        return { ...result, error: 'No winning positions at settlement; market cancelled with refunds enabled.' };
+      }
+      throw error;
+    }
+  }
+
+  async send({ transaction, signer, attachedMarket }, match) {
     const latest = await this.connection.getLatestBlockhash('confirmed');
     transaction.feePayer = signer.publicKey;
     transaction.recentBlockhash = latest.blockhash;
     transaction.lastValidBlockHeight = latest.lastValidBlockHeight;
     transaction.sign(signer);
     const simulation = await this.connection.simulateTransaction(transaction, [signer]);
-    if (simulation.value.err) throw new Error(`Devnet simulation failed: ${JSON.stringify(simulation.value.err)}`);
+    if (simulation.value.err) {
+      const code = simulation.value.err?.InstructionError?.[1]?.Custom;
+      const error = new Error(`Devnet simulation failed: ${JSON.stringify(simulation.value.err)}`);
+      if (typeof code === 'number') error.customCode = code;
+      throw error;
+    }
     const signature = await this.connection.sendRawTransaction(transaction.serialize());
     await this.connection.confirmTransaction({ signature, ...latest }, 'confirmed');
     if (attachedMarket) await this.repository.attachMarket(match.id, attachedMarket);
@@ -68,6 +88,7 @@ class DevnetMarketSigner {
         { pubkey: addresses.config, isSigner: false, isWritable: false }, { pubkey: addresses.market, isSigner: false, isWritable: true }, { pubkey: addresses.vault, isSigner: false, isWritable: true }, { pubkey: this.treasury, isSigner: false, isWritable: true }, { pubkey: this.mint, isSigner: false, isWritable: false }, { pubkey: this.settlement.publicKey, isSigner: true, isWritable: false }, { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
       ], data: Buffer.concat([discriminator('settle_market'), Buffer.from([result]), Buffer.from(command.payload.transcriptHash, 'hex')]) })) };
     }
+    if (command.command_type === 'CANCEL') return { signer: this.platform, transaction: new Transaction().add(new TransactionInstruction({ programId: this.programId, keys: [{ pubkey: addresses.config, isSigner: false, isWritable: false }, { pubkey: addresses.market, isSigner: false, isWritable: true }, { pubkey: this.platform.publicKey, isSigner: true, isWritable: false }], data: discriminator('cancel_market') })) };
     throw new Error(`Unsupported market command ${command.command_type}`);
   }
 }

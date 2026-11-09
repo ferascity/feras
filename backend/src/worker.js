@@ -48,7 +48,7 @@ async function main() {
             databaseUrl: process.env.FERAS_DATABASE_URL,
             countdownMinutes: Number(process.env.FERAS_AUTO_PAIR_MINUTES || 15),
           });
-          process.stdout.write(`[AutoPair] Automatically staged ${paired.id} (${paired.title}) with lock in ${paired.lockTime}s\n`);
+          process.stdout.write(`[AutoPair] Automatically staged ${paired.id} (${paired.title}) with betting open until ${paired.marketLockTime}\n`);
         }
       }
 
