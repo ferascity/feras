@@ -957,7 +957,7 @@
         <div class="card">
           <div class="card-body">
             <p class="section-desc">
-              Automatically pair engine personas (Atlas vs. Bishop), rotate White / Black colors, and configure betting lock intervals for the mobile arena.
+              Automatically pair the Stockfish roster in a round-robin rotation, flip White / Black each cycle, and configure betting lock intervals for the mobile arena.
             </p>
             <div class="form-grid">
               <div class="form-group">
@@ -1253,6 +1253,7 @@
         marketWallet: null,
         lockWallet: null,
         distributionWallet: null,
+        matchmaker: null,
       };
 
       // Banner update with visual feedback
@@ -1351,10 +1352,22 @@
         try {
           const preview = await request('/api/matchmaker/preview');
           if (preview && preview.suggestedId) {
+            const label = (name, id) => {
+              const profile = (preview.roster || []).find((item) => item.id === id);
+              return profile && profile.skillLevel != null
+                ? `${name} (Stockfish ${profile.skillLevel})`
+                : `${name} (Stockfish)`;
+            };
+            state.matchmaker = {
+              whiteAgentId: preview.whiteAgentId,
+              blackAgentId: preview.blackAgentId,
+              whiteLabel: label(preview.suggestedWhite, preview.whiteAgentId),
+              blackLabel: label(preview.suggestedBlack, preview.blackAgentId),
+            };
             $('pair-next-id').value = preview.suggestedId;
             $('pair-next-title').value = preview.suggestedTitle;
-            $('pair-white-name').textContent = preview.suggestedWhite + ' (Stockfish)';
-            $('pair-black-name').textContent = preview.suggestedBlack + ' (Stockfish)';
+            $('pair-white-name').textContent = state.matchmaker.whiteLabel;
+            $('pair-black-name').textContent = state.matchmaker.blackLabel;
           }
         } catch (e) {
           console.warn('Matchmaker preview fetch error', e);
@@ -1434,10 +1447,17 @@
 
       // Matchmaker Actions
       $('btn-swap-colors').onclick = () => {
-        const white = $('pair-white-name').textContent;
-        const black = $('pair-black-name').textContent;
-        $('pair-white-name').textContent = black;
-        $('pair-black-name').textContent = white;
+        const pairing = state.matchmaker;
+        if (!pairing) {
+          const white = $('pair-white-name').textContent;
+          $('pair-white-name').textContent = $('pair-black-name').textContent;
+          $('pair-black-name').textContent = white;
+          return;
+        }
+        [pairing.whiteAgentId, pairing.blackAgentId] = [pairing.blackAgentId, pairing.whiteAgentId];
+        [pairing.whiteLabel, pairing.blackLabel] = [pairing.blackLabel, pairing.whiteLabel];
+        $('pair-white-name').textContent = pairing.whiteLabel;
+        $('pair-black-name').textContent = pairing.blackLabel;
       };
 
       $('btn-auto-pair').onclick = async () => {
@@ -1445,9 +1465,7 @@
           const id = $('pair-next-id').value.trim();
           const title = $('pair-next-title').value.trim();
           const countdown = window.selectedPairCountdown || 15;
-          const whiteName = $('pair-white-name').textContent;
-          const whiteId = whiteName.includes('Bishop') ? 'bishop-stockfish-14' : 'atlas-stockfish-16';
-          const blackId = whiteName.includes('Bishop') ? 'atlas-stockfish-16' : 'bishop-stockfish-14';
+          const pairing = state.matchmaker;
 
           if (!confirm(`Auto-pair ${id} (${title}) with ${countdown} min lock countdown?`)) return;
           message(`Pairing ${id} in backend...`);
@@ -1455,8 +1473,8 @@
             matchId: id,
             title,
             countdownMinutes: countdown,
-            whiteAgentId: whiteId,
-            blackAgentId: blackId,
+            whiteAgentId: pairing ? pairing.whiteAgentId : undefined,
+            blackAgentId: pairing ? pairing.blackAgentId : undefined,
           });
 
           message(`Match ${result.id} successfully paired and staged in backend!`, false);

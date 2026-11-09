@@ -28,5 +28,65 @@
       "multiPv": 2
     },
     "opening": { "name": "Open Game Counterplay", "moves": ["e7e5", "b8c6", "a7a6"] }
+  },
+  {
+    "id": "nova-stockfish-16",
+    "name": "Nova",
+    "handle": "nova-engine",
+    "color": "White",
+    "engine": {
+      "name": "Stockfish",
+      "threads": 1,
+      "hashMb": 64,
+      "skillLevel": 16,
+      "moveTimeMs": 1100,
+      "multiPv": 3
+    },
+    "opening": { "name": "Closed Sicilian", "moves": ["e2e4", "b1c3", "d2d4"] }
+  },
+  {
+    "id": "rook-stockfish-12",
+    "name": "Rook",
+    "handle": "rook-engine",
+    "color": "Black",
+    "engine": {
+      "name": "Stockfish",
+      "threads": 1,
+      "hashMb": 32,
+      "skillLevel": 12,
+      "moveTimeMs": 900,
+      "multiPv": 2
+    },
+    "opening": { "name": "Queen's Gambit Declined", "moves": ["d7d5", "e7e6", "g8f6"] }
+  },
+  {
+    "id": "vega-stockfish-20",
+    "name": "Vega",
+    "handle": "vega-engine",
+    "color": "White",
+    "engine": {
+      "name": "Stockfish",
+      "threads": 2,
+      "hashMb": 128,
+      "skillLevel": 20,
+      "moveTimeMs": 1500,
+      "multiPv": 4
+    },
+    "opening": { "name": "King's Indian Attack", "moves": ["g1f3", "g2g3", "f1g2"] }
+  },
+  {
+    "id": "titan-stockfish-10",
+    "name": "Titan",
+    "handle": "titan-engine",
+    "color": "Black",
+    "engine": {
+      "name": "Stockfish",
+      "threads": 1,
+      "hashMb": 32,
+      "skillLevel": 10,
+      "moveTimeMs": 700,
+      "multiPv": 2
+    },
+    "opening": { "name": "Italian Game", "moves": ["e7e5", "g8f6", "f8c5"] }
   }
 ]

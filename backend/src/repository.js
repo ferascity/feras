@@ -104,6 +104,46 @@ class MatchRepository {
   async getEvents(id, after = 0) { return (await this.pool.query('SELECT * FROM match_events WHERE match_id=$1 AND sequence > $2 ORDER BY sequence', [id, after])).rows; }
   async ping() { await this.pool.query('SELECT 1'); }
 
+  /**
+   * Abandons SCHEDULED matches that never received an on-chain market and whose
+   * betting lock time has already passed. Without this, a single failed CREATE
+   * blocks the background matchmaker forever. Matches that did get a market are
+   * left untouched so any locked funds stay claimable.
+   */
+  async abandonStaleUnpairedMatches({ graceSeconds = 0 } = {}) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows } = await client.query(
+        `UPDATE matches
+            SET status='ABORTED',
+                termination_reason='Abandoned: no on-chain market was created before the lock time',
+                updated_at=NOW()
+          WHERE status='SCHEDULED'
+            AND market_address IS NULL
+            AND market_lock_time IS NOT NULL
+            AND market_lock_time <= NOW() - ($1 * INTERVAL '1 second')
+          RETURNING id`,
+        [Math.max(0, Math.trunc(graceSeconds))],
+      );
+      if (rows.length > 0) {
+        const ids = rows.map((row) => row.id);
+        await client.query(
+          `UPDATE market_commands
+              SET status='FAILED',
+                  error='Abandoned by auto-pair cleanup: the match lock time passed before a market was created',
+                  updated_at=NOW()
+            WHERE match_id = ANY($1::text[])
+              AND command_type = 'CREATE'
+              AND status IN ('PENDING', 'AWAITING_SIGNATURE', 'SUBMITTED')`,
+          [ids],
+        );
+      }
+      await client.query('COMMIT');
+      return rows.map((row) => row.id);
+    } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+  }
+
   async enqueueDueLocks() {
     const client = await this.pool.connect();
     try {

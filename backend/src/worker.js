@@ -28,9 +28,21 @@ async function main() {
     try {
       if (process.env.FERAS_AUTO_PAIR_ENABLED === 'true' && Date.now() - lastAutoPairCheck > 30_000) {
         lastAutoPairCheck = Date.now();
+        const abandoned = await repository.abandonStaleUnpairedMatches({
+          graceSeconds: Number(process.env.FERAS_AUTO_PAIR_STALE_GRACE_SECONDS || 300),
+        });
+        if (abandoned.length > 0) {
+          process.stdout.write(`[AutoPair] Abandoned stale unpaired matches: ${abandoned.join(', ')}\n`);
+        }
         const live = await repository.listMatches('LIVE');
         const scheduled = await repository.listMatches('SCHEDULED');
-        if (live.length === 0 && scheduled.length === 0) {
+        const now = Date.now();
+        // Only a live match or a scheduled match that can still open a market
+        // blocks the next pairing. Stale matches whose lock time has passed are
+        // ignored so one failed round cannot stall the schedule forever.
+        const activeScheduled = scheduled.filter((match) =>
+          match.market_lock_time && new Date(match.market_lock_time).getTime() > now);
+        if (live.length === 0 && activeScheduled.length === 0) {
           const { autoPairMatch } = require('./matchmaker');
           const paired = await autoPairMatch({
             databaseUrl: process.env.FERAS_DATABASE_URL,

@@ -341,20 +341,21 @@ async function handle(request, response) {
     }
     if (matchReadApi && request.method === 'GET' && url.pathname === '/v1/matchmaker/preview') {
       const existing = await matchReadApi.list();
-      let nextNum = 1;
-      for (const m of existing) {
-        const match = m.id.match(/^gp-(\d+)$/i);
-        if (match) {
-          const n = parseInt(match[1], 10);
-          if (n >= nextNum) nextNum = n + 1;
-        }
-      }
+      const { loadRoster, nextGrandPrixNumber, pairingForIndex } = require('../backend/src/pairing');
+      const roster = loadRoster();
+      const nextNum = nextGrandPrixNumber(existing);
+      const rotation = pairingForIndex(roster, nextNum - 1);
       return json(response, 200, {
         suggestedId: `gp-${String(nextNum).padStart(3, '0')}`,
         suggestedTitle: `Grand Prix Round ${nextNum}`,
         nextRound: nextNum,
-        suggestedWhite: nextNum % 2 === 0 ? 'Bishop' : 'Atlas',
-        suggestedBlack: nextNum % 2 === 0 ? 'Atlas' : 'Bishop',
+        suggestedWhite: rotation.white.name,
+        suggestedBlack: rotation.black.name,
+        whiteAgentId: rotation.white.id,
+        blackAgentId: rotation.black.id,
+        swapColors: rotation.swapColors,
+        scheduleIndex: rotation.scheduleIndex,
+        roster: roster.map((profile) => ({ id: profile.id, name: profile.name, skillLevel: profile.engine?.skillLevel ?? null })),
       });
     }
     if (matchReadApi && request.method === 'POST' && url.pathname === '/v1/matchmaker/pair') {
@@ -370,6 +371,7 @@ async function handle(request, response) {
         countdownMinutes: Number(body.countdownMinutes || 15),
         whiteAgentId: body.whiteAgentId,
         blackAgentId: body.blackAgentId,
+        swapColors: body.swapColors === true,
         baseTimeMs: Number(body.baseTimeMs || 180_000),
         incrementMs: Number(body.incrementMs || 2_000),
       });

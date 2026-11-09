@@ -1,18 +1,12 @@
 #!/usr/bin/env node
-const fs = require('node:fs');
-const path = require('node:path');
 const { MatchRepository } = require('./repository');
 const { INITIAL_FEN } = require('./match-runner');
 const { nextTranscriptHash, GENESIS_HASH } = require('./canonical');
+const { loadRoster, nextGrandPrixNumber, pairingForIndex } = require('./pairing');
 
 function option(name) {
   const index = process.argv.indexOf(`--${name}`);
   return index >= 0 ? process.argv[index + 1] : null;
-}
-
-function loadProfiles() {
-  const file = path.resolve(__dirname, '..', '..', 'config', 'agent-profiles.json');
-  return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
 
 async function autoPairMatch({
@@ -23,6 +17,7 @@ async function autoPairMatch({
   countdownMinutes = 15,
   whiteAgentId = null,
   blackAgentId = null,
+  swapColors = false,
   baseTimeMs = 180_000,
   incrementMs = 2_000,
 } = {}) {
@@ -30,32 +25,23 @@ async function autoPairMatch({
   const repository = new MatchRepository(databaseUrl);
   try {
     const existing = await repository.listMatches();
-    const profiles = loadProfiles();
-
-    // Auto-calculate next round number
-    let nextNum = 1;
-    for (const m of existing) {
-      const match = m.id.match(/^gp-(\d+)$/i);
-      if (match) {
-        const n = parseInt(match[1], 10);
-        if (n >= nextNum) nextNum = n + 1;
-      }
-    }
+    const roster = loadRoster();
+    const nextNum = nextGrandPrixNumber(existing);
     const finalId = matchId || `gp-${String(nextNum).padStart(3, '0')}`;
     const finalTitle = title || `Grand Prix Round ${nextNum}`;
 
-    // Select White & Black profiles (alternating if even round)
-    let white = profiles.find((p) => p.id === whiteAgentId) || profiles[0];
-    let black = profiles.find((p) => p.id === blackAgentId) || profiles[1];
+    // The rotation index follows the match number so the schedule keeps moving
+    // forward even when older rounds are purged or abandoned.
+    const rotation = pairingForIndex(roster, nextNum - 1, { swapColors });
+    let white = whiteAgentId ? roster.find((profile) => profile.id === whiteAgentId) : rotation.white;
+    let black = blackAgentId ? roster.find((profile) => profile.id === blackAgentId) : rotation.black;
+    if (!white || !black) throw new Error('Requested pairing references an unknown agent profile');
+    if (white.id === black.id) throw new Error('A match needs two different agent profiles');
 
-    if (!whiteAgentId && !blackAgentId && nextNum % 2 === 0) {
-      // Swap colors for fairness on even rounds
-      const temp = white;
-      white = { ...black, color: 'White' };
-      black = { ...temp, color: 'Black' };
-    }
+    white = { ...white, color: 'White' };
+    black = { ...black, color: 'Black' };
 
-    const lockTime = new Date(Date.now() + Math.max(countdownMinutes, 5) * 60_000);
+    const lockTime = new Date(Date.now() + Math.max(countdownMinutes, 1) * 60_000);
     const createdEvent = { type: 'MATCH_CREATED', matchId: finalId, initialFen: INITIAL_FEN };
 
     await repository.createMatch({
@@ -81,6 +67,9 @@ async function autoPairMatch({
       category,
       whiteAgent: white.name,
       blackAgent: black.name,
+      whiteAgentId: white.id,
+      blackAgentId: black.id,
+      scheduleIndex: rotation.scheduleIndex,
       lockTime: Math.floor(lockTime.getTime() / 1000),
       marketLockTime: lockTime.toISOString(),
       timeControl: `${Math.floor(baseTimeMs / 60000)}+${Math.floor(incrementMs / 1000)}`,
@@ -99,6 +88,7 @@ async function main() {
     countdownMinutes,
     whiteAgentId: option('white'),
     blackAgentId: option('black'),
+    swapColors: process.argv.includes('--swap-colors'),
     baseTimeMs: Number(option('base-ms') || 180_000),
     incrementMs: Number(option('increment-ms') || 2_000),
   });
