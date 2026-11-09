@@ -395,7 +395,7 @@ function parseTestUsdc(value) {
   if (!/^(0|[1-9]\d*)(\.\d{1,6})?$/.test(amount)) throw fail('Amount must be a positive Devnet USDC value with at most 6 decimals');
   const [whole, fraction = ''] = amount.split('.');
   const units = BigInt(whole) * 1_000_000n + BigInt(fraction.padEnd(6, '0') || '0');
-  if (units < 1n || units > 10_000n * 1_000_000n) throw fail('Distribution amount must be between 0.000001 and 10,000 Devnet USDC');
+  if (units < 1n || units > 100_000n * 1_000_000n) throw fail('Distribution amount must be between 0.000001 and 100,000 Devnet USDC');
   return { display: amount, units };
 }
 
@@ -645,7 +645,11 @@ const server = http.createServer(async (request, response) => {
     if (request.method === 'GET' && (request.url === '/' || request.url === '/index.html')) {
       const nonce = randomBytes(16).toString('base64');
       const body = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8').replace('{{CSP_NONCE}}', nonce);
-      response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Security-Policy': `default-src 'self' https://esm.sh; connect-src 'self' https://esm.sh; style-src 'self' 'unsafe-inline'; script-src 'self' 'nonce-${nonce}' https://esm.sh` });
+      response.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-store',
+        'Content-Security-Policy': `default-src 'self' https://esm.sh; connect-src 'self' https://esm.sh; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'nonce-${nonce}' https://esm.sh`,
+      });
       return response.end(body);
     }
     sendJson(response, 404, { error: 'Not found' });

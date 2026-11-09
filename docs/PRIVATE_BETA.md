@@ -65,6 +65,10 @@ Top up the float by signing a transfer in the admin console (`admin/`, connects
 the distribution authority `6RCii…`) with the float address as the recipient.
 The transfer creates the float's token account automatically.
 
+1. Open **http://127.0.0.1:8899** and choose **USDC Faucet**.
+2. Click **Use float address** (fills the recipient and 25,000).
+3. **Connect Distribution Wallet**, then **Review and Distribute**.
+
 The float can never mint: the mint authority was revoked. Worst case if the hot
 key leaks is the loss of the float, which is test credit.
 
