@@ -169,6 +169,19 @@ function accountMetaMatches(instruction, expected) {
   );
 }
 
+/**
+ * Same as accountMetaMatches, but tolerates a read-only account being promoted
+ * to writable. The transaction compiler promotes fee payers and union-merges
+ * duplicate account keys, which does not change intent.
+ */
+function accountMetaCompatible(instruction, expected) {
+  return instruction.keys.length === expected.length && instruction.keys.every((key, index) =>
+    key.pubkey.equals(expected[index].pubkey) &&
+    key.isSigner === expected[index].isSigner &&
+    (!expected[index].isWritable || key.isWritable),
+  );
+}
+
 function assertExactUpgradeTransaction(transaction, config, cliAuthority) {
   const { programData } = deriveAddresses(config);
   if (!transaction.feePayer?.equals(cliAuthority.publicKey) || transaction.instructions.length !== 1) {
@@ -415,8 +428,77 @@ async function prepareDistribution(config, body) {
   if (!await rpc.getAccountInfo(destination, 'confirmed')) transaction.add(createAssociatedTokenAccountInstruction(config.distributionAuthority, destination, recipient, config.acceptedMint, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID));
   transaction.add(createTransferCheckedInstruction(source, config.acceptedMint, destination, config.distributionAuthority, amount.units, 6, [], TOKEN_PROGRAM_ID));
   const draftId = require('crypto').createHash('sha256').update(transaction.serializeMessage()).digest('hex');
-  distributionDrafts.set(draftId, { recipient: recipient.toBase58(), amount: amount.display, source: source.toBase58(), destination: destination.toBase58(), messageHash: draftId });
+  distributionDrafts.set(draftId, {
+    recipient: recipient.toBase58(),
+    amount: amount.display,
+    units: amount.units.toString(),
+    source: source.toBase58(),
+    destination: destination.toBase58(),
+    messageHash: draftId,
+  });
   return { transaction: serializeTransaction(transaction), draftId, review: { cluster: 'devnet', ...distributionDrafts.get(draftId) } };
+}
+
+/**
+ * Wallets are allowed to refresh the blockhash, add compute-budget instructions,
+ * or normalize the account list before signing. None of that changes intent, so
+ * the submission is verified instruction-by-instruction instead of by comparing
+ * the whole message hash.
+ */
+function assertExactDistributionTransaction(transaction, config, draft) {
+  const recipient = new PublicKey(draft.recipient);
+  const source = new PublicKey(draft.source);
+  const destination = new PublicKey(draft.destination);
+  const mint = config.acceptedMint;
+  const expectedDestination = getAssociatedTokenAddressSync(mint, recipient, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+
+  if (!transaction.feePayer?.equals(config.distributionAuthority)) {
+    throw fail('Rejected: fee payer must be the distribution authority', 409);
+  }
+  if (!destination.equals(expectedDestination)) {
+    throw fail('Rejected: destination token account does not match the reviewed recipient', 409);
+  }
+
+  const instructions = transaction.instructions.filter((ix) => !ix.programId.equals(COMPUTE_BUDGET_PROGRAM_ID));
+  let transferSeen = false;
+  let createSeen = false;
+
+  for (const instruction of instructions) {
+    if (instruction.programId.equals(ASSOCIATED_TOKEN_PROGRAM_ID)) {
+      if (createSeen || transferSeen) throw fail('Rejected: unexpected associated token account instruction', 409);
+      const expectedKeys = [
+        { pubkey: config.distributionAuthority, isSigner: true, isWritable: true },
+        { pubkey: destination, isSigner: false, isWritable: true },
+        { pubkey: recipient, isSigner: false, isWritable: false },
+        { pubkey: mint, isSigner: false, isWritable: false },
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      ];
+      if (instruction.data.length !== 0 || !accountMetaCompatible(instruction, expectedKeys)) {
+        throw fail('Rejected: token account creation does not match the reviewed distribution', 409);
+      }
+      createSeen = true;
+      continue;
+    }
+
+    if (transferSeen || !instruction.programId.equals(TOKEN_PROGRAM_ID) || instruction.data.length !== 10 || instruction.data[0] !== 12) {
+      throw fail('Rejected: transaction must contain exactly one reviewed test-USDC transfer', 409);
+    }
+    const expectedKeys = [
+      { pubkey: source, isSigner: false, isWritable: true },
+      { pubkey: mint, isSigner: false, isWritable: false },
+      { pubkey: destination, isSigner: false, isWritable: true },
+      { pubkey: config.distributionAuthority, isSigner: true, isWritable: false },
+    ];
+    const units = instruction.data.readBigUInt64LE(1);
+    const decimals = instruction.data[9];
+    if (decimals !== 6 || units !== BigInt(draft.units) || !accountMetaCompatible(instruction, expectedKeys)) {
+      throw fail('Rejected: transfer amount or accounts differ from the reviewed distribution', 409);
+    }
+    transferSeen = true;
+  }
+
+  if (!transferSeen) throw fail('Rejected: the reviewed test-USDC transfer is missing', 409);
 }
 
 async function prepareUpgrade(config) {
@@ -547,7 +629,14 @@ async function submitTransaction(config, encoded, operation, draftId) {
     assertExactMarketLockTransaction(transaction, config, draft);
   } else if (operation === 'distribution') {
     const draft = distributionDrafts.get(draftId || '');
-    if (!draft || require('crypto').createHash('sha256').update(transaction.serializeMessage()).digest('hex') !== draft.messageHash) throw fail('Rejected: transaction differs from the reviewed distribution draft', 409);
+    if (!draft) throw fail('The reviewed distribution draft expired; prepare it again', 409);
+    const submittedHash = require('crypto').createHash('sha256').update(transaction.serializeMessage()).digest('hex');
+    if (submittedHash !== draft.messageHash) {
+      // Blockhash refresh (or an injected compute-budget instruction) is fine as
+      // long as the transfer itself still matches the reviewed draft.
+      process.stderr.write('[admin] distribution message changed before signing; verifying instructions semantically\n');
+    }
+    assertExactDistributionTransaction(transaction, config, draft);
     const signature = transaction.signatures.find((entry) => entry.publicKey.equals(config.distributionAuthority))?.signature;
     if (!signature || !ed25519.verify(signature, transaction.serializeMessage(), config.distributionAuthority.toBytes())) throw fail('Rejected: distribution-authority signature is missing or invalid', 409);
   } else {
