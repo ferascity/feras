@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const fs = require('node:fs');
 const { MatchRepository } = require('./repository');
 const { MatchRunner } = require('./match-runner');
 const { UciEngine } = require('./uci-engine');
@@ -6,6 +7,27 @@ const { MarketCommandWorker } = require('./market-commands');
 const { configuredMarketSigner } = require('./market-chain');
 
 const POLL_MS = Number(process.env.FERAS_WORKER_POLL_MS || 1_000);
+
+let balanceConnection = null;
+let platformKeypair = null;
+let lastBalanceWarning = 0;
+
+/**
+ * Auto-pairing without SOL creates rounds that can never open a market, which
+ * then get abandoned. Refuse to stage a round when the automation wallet cannot
+ * pay for market rent and fees.
+ */
+async function automationBalanceSol() {
+  if (process.env.FERAS_MARKET_SIGNER_MODE !== 'automated-devnet') return null;
+  const keypairPath = process.env.FERAS_AUTOMATION_PLATFORM_KEYPAIR_PATH;
+  if (!keypairPath) return null;
+  const { Connection, Keypair } = require('@coral-xyz/anchor').web3;
+  if (!platformKeypair) {
+    platformKeypair = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fs.readFileSync(keypairPath, 'utf8'))));
+  }
+  if (!balanceConnection) balanceConnection = new Connection(process.env.FERAS_SOLANA_RPC_URL, 'confirmed');
+  return (await balanceConnection.getBalance(platformKeypair.publicKey)) / 1e9;
+}
 
 async function main() {
   if (!process.env.FERAS_DATABASE_URL) throw new Error('FERAS_DATABASE_URL is required');
@@ -43,12 +65,21 @@ async function main() {
         const activeScheduled = scheduled.filter((match) =>
           match.market_lock_time && new Date(match.market_lock_time).getTime() > now);
         if (live.length === 0 && activeScheduled.length === 0) {
-          const { autoPairMatch } = require('./matchmaker');
-          const paired = await autoPairMatch({
-            databaseUrl: process.env.FERAS_DATABASE_URL,
-            countdownMinutes: Number(process.env.FERAS_AUTO_PAIR_MINUTES || 15),
-          });
-          process.stdout.write(`[AutoPair] Automatically staged ${paired.id} (${paired.title}) with betting open until ${paired.marketLockTime}\n`);
+          const minSol = Number(process.env.FERAS_AUTO_PAIR_MIN_SOL || 0.05);
+          const balance = await automationBalanceSol();
+          if (balance !== null && balance < minSol) {
+            if (Date.now() - lastBalanceWarning > 10 * 60_000) {
+              lastBalanceWarning = Date.now();
+              process.stdout.write(`[AutoPair] Skipped: automation wallet holds ${balance.toFixed(4)} SOL, below FERAS_AUTO_PAIR_MIN_SOL=${minSol}\n`);
+            }
+          } else {
+            const { autoPairMatch } = require('./matchmaker');
+            const paired = await autoPairMatch({
+              databaseUrl: process.env.FERAS_DATABASE_URL,
+              countdownMinutes: Number(process.env.FERAS_AUTO_PAIR_MINUTES || 15),
+            });
+            process.stdout.write(`[AutoPair] Automatically staged ${paired.id} (${paired.title}) with betting open until ${paired.marketLockTime}\n`);
+          }
         }
       }
 

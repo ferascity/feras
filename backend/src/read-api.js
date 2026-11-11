@@ -12,7 +12,7 @@ function agent(profile, color, matchId) {
 function outcome(result) { return result === '1-0' ? 'WHITE' : result === '0-1' ? 'BLACK' : 'DRAW'; }
 
 function serializeMatch(match, moves = []) {
-  const status = match.status === 'SCHEDULED' ? 'UPCOMING' : match.status === 'COMPLETED' ? 'COMPLETED' : 'LIVE';
+  const status = match.status === 'SCHEDULED' ? 'UPCOMING' : match.status === 'COMPLETED' || match.status === 'ABORTED' ? 'COMPLETED' : 'LIVE';
   return {
     id: match.id, title: match.title, category: match.category, status,
     whiteAgent: agent(match.white_profile, 'White', match.id), blackAgent: agent(match.black_profile, 'Black', match.id),
@@ -37,7 +37,12 @@ function serializeMatch(match, moves = []) {
 
 function createReadApi(repository) {
   return {
-    async list(status) { return Promise.all((await repository.listMatches(status === 'LIVE' ? 'LIVE' : status === 'UPCOMING' ? 'SCHEDULED' : status === 'COMPLETED' ? 'COMPLETED' : undefined)).map(async (match) => serializeMatch(match, await repository.getMoves(match.id)))); },
+    async list(status) {
+      const matches = await repository.listMatches(status === 'LIVE' ? 'LIVE' : status === 'UPCOMING' ? 'SCHEDULED' : status === 'COMPLETED' ? 'COMPLETED' : undefined);
+      // ABORTED rows are scheduler artifacts (a round that never got a market).
+      // They have no moves and no on-chain market, so they are not listed.
+      return Promise.all(matches.filter((match) => match.status !== 'ABORTED').map(async (match) => serializeMatch(match, await repository.getMoves(match.id))));
+    },
     async get(id) { const match = await repository.getMatch(id); return match ? serializeMatch(match, await repository.getMoves(id)) : null; },
     async replay(id) { const match = await repository.getMatch(id); return match ? serializeMatch(match, await repository.getMoves(id)).replay : null; },
     async events(id, after) { return repository.getEvents(id, after); },
