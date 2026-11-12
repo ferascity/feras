@@ -25,6 +25,10 @@ services:
       FERAS_BETA_DAILY_SOL: ${FERAS_BETA_DAILY_SOL:-0.5}
       FERAS_BETA_GLOBAL_DAILY_USDC: ${FERAS_BETA_GLOBAL_DAILY_USDC:-1000}
       FERAS_BETA_DISABLED: ${FERAS_BETA_DISABLED:-false}
+      FERAS_BETA_WEB_ORIGIN: ${FERAS_BETA_WEB_ORIGIN:-https://dllxy64bv69x8.cloudfront.net}
+      # Token that protects /v1/admin/*. Generate with `openssl rand -hex 32`
+      # and keep it in /opt/feras/.env.aws. Unset disables the admin API.
+      FERAS_ADMIN_TOKEN: ${FERAS_ADMIN_TOKEN:-}
 
   coordinator:
     restart: unless-stopped

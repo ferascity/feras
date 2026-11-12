@@ -2,6 +2,7 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { Client } = require('pg');
+const { seedProfiles } = require('./profiles');
 
 async function main() {
   if (!process.env.FERAS_DATABASE_URL) throw new Error('FERAS_DATABASE_URL is required');
@@ -13,6 +14,10 @@ async function main() {
       await client.query(await fs.readFile(path.join(directory, file), 'utf8'));
       process.stdout.write(`Applied ${file}\n`);
     }
+    // Seed the bundled roster once. Existing rows are never overwritten so
+    // operator edits made in the admin console survive every deploy.
+    const inserted = await seedProfiles(client);
+    process.stdout.write(`Seeded ${inserted} engine profile${inserted === 1 ? '' : 's'}\n`);
   } finally { await client.end(); }
 }
 

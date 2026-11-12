@@ -113,6 +113,46 @@ function connection(config) {
   return new Connection(config.rpcUrl, { commitment: 'confirmed', fetch: robustFetch });
 }
 
+/**
+ * Arena administration proxy.
+ *
+ * The market API owns all match, profile, and invite mutations. The browser
+ * console never sees FERAS_ADMIN_TOKEN: this loopback server injects it into the
+ * upstream query string (CloudFront forwards query strings but not custom
+ * headers) and streams the response back.
+ *
+ * `/api/arena/status`     → /v1/admin/status
+ * `/api/arena/matches…`   → /v1/admin/matches…
+ * `/api/profiles…`        → /v1/admin/profiles…
+ * `/api/invites…`         → /v1/admin/invites…
+ * `/api/testers…`         → /v1/admin/testers…
+ */
+async function proxyAdmin(request, response, pathname, search) {
+  const configValues = { ...parseEnvFile(CONFIG_PATH), ...process.env };
+  const token = (configValues.FERAS_ADMIN_TOKEN || '').trim();
+  if (!token) {
+    return sendJson(response, 503, {
+      error: 'FERAS_ADMIN_TOKEN is not configured. Add it to config/devnet-release.env and restart the console.',
+    });
+  }
+  const apiUrl = (configValues.FERAS_MARKET_API_URL || 'https://dqrwnhn2nif0u.cloudfront.net').replace(/\/+$/, '');
+  const upstreamPath = pathname
+    .replace(/^\/api\/arena\//, '/v1/admin/')
+    .replace(/^\/api\//, '/v1/admin/');
+  const query = new URLSearchParams(search);
+  query.set('token', token);
+  const body = request.method === 'GET' || request.method === 'DELETE' ? null : await readJson(request);
+  const res = await robustFetch(`${apiUrl}${upstreamPath}?${query.toString()}`, {
+    method: request.method,
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const text = await res.text();
+  let payload;
+  try { payload = JSON.parse(text || '{}'); } catch { payload = { error: text || `Upstream returned ${res.status}` }; }
+  return sendJson(response, res.status, payload);
+}
+
 function deriveAddresses(config) {
   const [programData] = PublicKey.findProgramAddressSync(
     [config.programId.toBuffer()],
@@ -831,6 +871,15 @@ const server = http.createServer(async (request, response) => {
     if (request.method === 'POST' && request.url === '/api/distribution/submit') { const body = await readJson(request); return sendJson(response, 200, await submitTransaction(config, body.transaction, 'distribution', body.draftId)); }
     if (request.method === 'POST' && request.url === '/api/authority/prepare') return sendJson(response, 200, await prepareAuthorityProposal(config, await readJson(request)));
     if (request.method === 'POST' && request.url === '/api/authority/submit') { const body = await readJson(request); return sendJson(response, 200, await submitTransaction(config, body.transaction, 'authority-propose', body.draftId)); }
+    const parsedUrl = new URL(request.url, `http://${HOST}:${PORT}`);
+    if (
+      parsedUrl.pathname.startsWith('/api/arena/') ||
+      parsedUrl.pathname === '/api/profiles' || parsedUrl.pathname.startsWith('/api/profiles/') ||
+      parsedUrl.pathname === '/api/invites' || parsedUrl.pathname.startsWith('/api/invites/') ||
+      parsedUrl.pathname === '/api/testers' || parsedUrl.pathname.startsWith('/api/testers/')
+    ) {
+      return proxyAdmin(request, response, parsedUrl.pathname, parsedUrl.searchParams);
+    }
     if (request.method === 'GET' && (request.url === '/' || request.url === '/index.html')) {
       const nonce = randomBytes(16).toString('base64');
       const body = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8').replace('{{CSP_NONCE}}', nonce);

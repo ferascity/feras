@@ -10,6 +10,8 @@ const u64 = (value) => { const out = Buffer.alloc(8); out.writeBigUInt64LE(BigIn
 const outcome = (result) => ({ '1-0': 0, '1/2-1/2': 1, '0-1': 2 }[result]);
 // feras_market::MarketError::NoWinningPool
 const NO_WINNING_POOL = 6022;
+// feras_market::MarketError::MarketNotLocked
+const MARKET_NOT_LOCKED = 6018;
 
 function required(name) { const value = process.env[name]?.trim(); if (!value) throw new Error(`${name} is required for automated market signing`); return value; }
 function loadKeypair(path, name) {
@@ -43,6 +45,17 @@ class DevnetMarketSigner {
     try {
       return await this.send(this.build(command, match), match);
     } catch (error) {
+      // An operator can force a result before the scheduled lock, or the lock
+      // command can lag behind settlement. Lock first, then retry the settle.
+      if (command.command_type === 'SETTLE' && error.customCode === MARKET_NOT_LOCKED) {
+        await this.send(this.build({ ...command, command_type: 'LOCK' }, match), match);
+        await this.repository.pool.query(
+          "UPDATE matches SET status='LIVE', started_at=COALESCE(started_at, NOW()), updated_at=NOW() WHERE id=$1 AND status='SCHEDULED'",
+          [match.id],
+        );
+        const result = await this.send(this.build(command, match), match);
+        return { ...result, error: 'Market was still open at settlement; locked automatically before settling.' };
+      }
       // A market cannot be settled unless the winning outcome holds positions.
       // Cancelling instead enables refunds for everyone who did take a position.
       if (command.command_type === 'SETTLE' && error.customCode === NO_WINNING_POOL) {

@@ -2,7 +2,8 @@
 const { MatchRepository } = require('./repository');
 const { INITIAL_FEN } = require('./match-runner');
 const { nextTranscriptHash, GENESIS_HASH } = require('./canonical');
-const { loadRoster, nextGrandPrixNumber, pairingForIndex } = require('./pairing');
+const { loadRosterFromPool } = require('./profiles');
+const { nextGrandPrixNumber, pairingForIndex } = require('./pairing');
 
 function option(name) {
   const index = process.argv.indexOf(`--${name}`);
@@ -25,8 +26,8 @@ async function autoPairMatch({
   const repository = new MatchRepository(databaseUrl);
   try {
     const existing = await repository.listMatches();
-    const roster = loadRoster();
-    const nextNum = nextGrandPrixNumber(existing);
+    const roster = await loadRosterFromPool(repository.pool);
+    const nextNum = Math.max(nextGrandPrixNumber(existing), (await repository.maxGrandPrixNumber()) + 1);
     const finalId = matchId || `gp-${String(nextNum).padStart(3, '0')}`;
     const finalTitle = title || `Grand Prix Round ${nextNum}`;
 

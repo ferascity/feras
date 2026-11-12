@@ -11,12 +11,43 @@ function agent(profile, color, matchId) {
 
 function outcome(result) { return result === '1-0' ? 'WHITE' : result === '0-1' ? 'BLACK' : 'DRAW'; }
 
-function serializeMatch(match, moves = []) {
+function serializeMoves(moves) {
+  return moves.map((move) => ({
+    ply: move.ply,
+    from: move.uci.slice(0, 2),
+    to: move.uci.slice(2, 4),
+    piece: move.piece,
+    color: move.color === 'WHITE' ? 'w' : 'b',
+    san: move.san,
+    fen: move.fen,
+    evalCentipawns: move.eval_centipawns,
+    analysis: move.analysis || [],
+    timeSpentSec: Number(move.time_spent_ms) / 1000,
+    captured: move.captured,
+    promotion: move.promotion,
+    isCheck: move.is_check,
+    isCheckmate: move.is_checkmate,
+    winProbabilityWhite: 0.5,
+  }));
+}
+
+/**
+ * Serialize a match for the public API.
+ *
+ * `moves` is optional on purpose. The arena list only needs a move count; a
+ * single completed match can carry 200+ fully analyzed moves, and shipping all
+ * of them for every match produced a 12 MB response. Replays are fetched
+ * lazily per selected match through /v1/matches/:id/replay.
+ */
+function serializeMatch(match, moves = null) {
   const status = match.status === 'SCHEDULED' ? 'UPCOMING' : match.status === 'COMPLETED' || match.status === 'ABORTED' ? 'COMPLETED' : 'LIVE';
+  const moveList = Array.isArray(moves) ? moves : null;
   return {
     id: match.id, title: match.title, category: match.category, status,
     whiteAgent: agent(match.white_profile, 'White', match.id), blackAgent: agent(match.black_profile, 'Black', match.id),
-    currentPly: match.current_ply, totalPlies: match.status === 'COMPLETED' ? match.current_ply : undefined,
+    currentPly: match.current_ply,
+    moveCount: moveList ? moveList.length : Number(match.current_ply || 0),
+    totalPlies: match.status === 'COMPLETED' ? match.current_ply : undefined,
     timeControl: `${Math.floor(Number(match.white_clock_ms) / 60000)}+${Math.floor(Number(match.increment_ms) / 1000)}`,
     viewerCount: 0, poolVolumeUsdc: 0,
     marketEstimates: { whiteMultiplier: 0, drawMultiplier: 0, blackMultiplier: 0 },
@@ -26,9 +57,10 @@ function serializeMatch(match, moves = []) {
     lockTime: match.market_lock_time ? Math.floor(new Date(match.market_lock_time).getTime() / 1000) : null,
     marketLockTime: match.market_lock_time ? new Date(match.market_lock_time).toISOString() : null,
     transcriptHash: match.transcript_hash,
+    hasReplay: moveList ? moveList.length > 0 : Number(match.current_ply || 0) > 0,
     replay: {
       matchId: match.id, initialFen: match.initial_fen,
-      moves: moves.map((move) => ({ ply: move.ply, from: move.uci.slice(0, 2), to: move.uci.slice(2, 4), piece: move.piece, color: move.color === 'WHITE' ? 'w' : 'b', san: move.san, fen: move.fen, evalCentipawns: move.eval_centipawns, analysis: move.analysis || [], timeSpentSec: Number(move.time_spent_ms) / 1000, captured: move.captured, promotion: move.promotion, isCheck: move.is_check, isCheckmate: move.is_checkmate, winProbabilityWhite: 0.5 })),
+      moves: moveList ? serializeMoves(moveList) : [],
       result: match.result, terminationReason: match.termination_reason || 'In progress', pgn: match.pgn,
     },
     result: match.result === '*' ? null : outcome(match.result),
@@ -37,11 +69,12 @@ function serializeMatch(match, moves = []) {
 
 function createReadApi(repository) {
   return {
-    async list(status) {
-      const matches = await repository.listMatches(status === 'LIVE' ? 'LIVE' : status === 'UPCOMING' ? 'SCHEDULED' : status === 'COMPLETED' ? 'COMPLETED' : undefined);
+    repository,
+    async list(status, { limit = 200 } = {}) {
+      const matches = await repository.listMatches(status === 'LIVE' ? 'LIVE' : status === 'UPCOMING' ? 'SCHEDULED' : status === 'COMPLETED' ? 'COMPLETED' : undefined, limit);
       // ABORTED rows are scheduler artifacts (a round that never got a market).
       // They have no moves and no on-chain market, so they are not listed.
-      return Promise.all(matches.filter((match) => match.status !== 'ABORTED').map(async (match) => serializeMatch(match, await repository.getMoves(match.id))));
+      return matches.filter((match) => match.status !== 'ABORTED').map((match) => serializeMatch(match));
     },
     async get(id) { const match = await repository.getMatch(id); return match ? serializeMatch(match, await repository.getMoves(id)) : null; },
     async replay(id) { const match = await repository.getMatch(id); return match ? serializeMatch(match, await repository.getMoves(id)).replay : null; },

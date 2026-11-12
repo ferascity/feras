@@ -814,6 +814,198 @@
         color: var(--text);
       }
 
+      /* ── Arena control, engine profiles, invites ─────────────── */
+
+      .admin-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+
+      .admin-toolbar .control-help {
+        margin-right: auto;
+      }
+
+      .admin-table {
+        display: flex;
+        flex-direction: column;
+        border: 1px solid var(--line);
+        border-radius: var(--r-md);
+        overflow: hidden;
+        background: var(--surface-2);
+      }
+
+      .admin-row {
+        display: grid;
+        grid-template-columns: 1.6fr 1fr 1fr 1fr auto;
+        align-items: center;
+        gap: 12px;
+        padding: 11px 14px;
+        border-bottom: 1px solid var(--line);
+        font-size: 13px;
+      }
+
+      .admin-row:last-child {
+        border-bottom: 0;
+      }
+
+      .admin-row.head {
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--text-tertiary);
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+      }
+
+      .admin-row .cell {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .admin-row .cell strong {
+        font-weight: 600;
+      }
+
+      .admin-row .cell small {
+        display: block;
+        color: var(--text-tertiary);
+        font-size: 11px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .admin-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 6px;
+      }
+
+      .mini-btn {
+        padding: 5px 9px;
+        border: 1px solid var(--line-strong);
+        border-radius: var(--r-xs);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text-secondary);
+        font: inherit;
+        font-size: 11.5px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+      }
+
+      .mini-btn:hover {
+        background: rgba(255, 255, 255, 0.09);
+        color: var(--text);
+      }
+
+      .mini-btn.danger {
+        color: var(--red);
+        border-color: rgba(248, 113, 113, 0.28);
+        background: var(--red-soft);
+      }
+
+      .mini-btn.primary {
+        color: var(--emerald-bright);
+        border-color: var(--emerald-line);
+        background: var(--emerald-soft);
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 8px;
+        border-radius: var(--r-full);
+        border: 1px solid var(--line-strong);
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-secondary);
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+      }
+
+      .status-pill.live,
+      .status-pill.active,
+      .status-pill.confirmed {
+        color: var(--emerald-bright);
+        border-color: var(--emerald-line);
+        background: var(--emerald-soft);
+      }
+
+      .status-pill.scheduled,
+      .status-pill.pending {
+        color: var(--amber);
+        border-color: rgba(251, 191, 36, 0.3);
+        background: rgba(251, 191, 36, 0.1);
+      }
+
+      .status-pill.aborted,
+      .status-pill.failed,
+      .status-pill.revoked,
+      .status-pill.blocked {
+        color: var(--red);
+        border-color: rgba(248, 113, 113, 0.28);
+        background: var(--red-soft);
+      }
+
+      .empty-state {
+        padding: 26px 14px;
+        text-align: center;
+        color: var(--text-tertiary);
+        font-size: 13px;
+      }
+
+      .profile-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 10px;
+      }
+
+      .profile-card {
+        padding: 13px 14px;
+        border: 1px solid var(--line);
+        border-radius: var(--r-sm);
+        background: var(--surface-2);
+      }
+
+      .profile-card.retired {
+        opacity: 0.5;
+      }
+
+      .profile-card h3 {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 2px;
+      }
+
+      .profile-card .handle {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-tertiary);
+      }
+
+      .profile-card dl {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 3px 10px;
+        margin: 9px 0 11px;
+        font-size: 11.5px;
+      }
+
+      .profile-card dt {
+        color: var(--text-tertiary);
+      }
+
+      .profile-card dd {
+        color: var(--text-secondary);
+        text-align: right;
+      }
+
       /* ── Responsive ──────────────────────────────────────────── */
 
       @media (max-width: 760px) {
@@ -924,6 +1116,9 @@
       <!-- Segmented Navigation Filter -->
       <nav class="segmented-nav" aria-label="Section Filter">
         <button type="button" class="segment-btn active" data-filter="all">All Operations</button>
+        <button type="button" class="segment-btn" data-filter="arena">Arena Control</button>
+        <button type="button" class="segment-btn" data-filter="profiles">Engine Profiles</button>
+        <button type="button" class="segment-btn" data-filter="invites">Invites & Testers</button>
         <button type="button" class="segment-btn" data-filter="auto-pair">Auto Matchmaker</button>
         <button type="button" class="segment-btn" data-filter="market-create">Create Market</button>
         <button type="button" class="segment-btn" data-filter="market-lock">Lock Market</button>
@@ -943,6 +1138,229 @@
         <div class="card">
           <div class="card-body">
             <div id="status" class="grid"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Arena Control -->
+      <section class="section-group" data-section="all,arena">
+        <div class="section-header-row">
+          <div>
+            <div class="section-eyebrow">Operator Override • Match Lifecycle</div>
+            <h2 class="section-title">Arena Control</h2>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <p class="section-desc">
+              Every match currently known to the backend. Result, cancel, and lock actions are queued as
+              on-chain commands and executed by the automation coordinator, so program state is never bypassed.
+            </p>
+            <div id="arena-summary" class="admin-toolbar">
+              <span class="control-help">Loading arena state…</span>
+            </div>
+            <div id="arena-list" class="admin-table">
+              <div class="empty-state">Loading matches…</div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="actions">
+              <button id="arena-refresh" type="button" class="secondary">Refresh Matches</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 14px;">
+          <div class="card-body">
+            <p class="section-desc">Create a match directly from the current engine roster.</p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="control-label" for="arena-new-id">Match ID</label>
+                <input id="arena-new-id" placeholder="gp-013" />
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="arena-new-title">Title</label>
+                <input id="arena-new-title" placeholder="Grand Prix Round 13" />
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="arena-new-white">White Engine</label>
+                <select id="arena-new-white"></select>
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="arena-new-black">Black Engine</label>
+                <select id="arena-new-black"></select>
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="arena-new-countdown">Betting Window (minutes)</label>
+                <input id="arena-new-countdown" type="number" min="1" max="10080" value="60" />
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="arena-new-category">Category</label>
+                <input id="arena-new-category" value="BENCHMARK" />
+              </div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="actions">
+              <button id="arena-create" type="button">Create Match</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Engine Profiles -->
+      <section class="section-group" data-section="all,profiles">
+        <div class="section-header-row">
+          <div>
+            <div class="section-eyebrow">Roster • Stockfish Personas</div>
+            <h2 class="section-title">Engine Profiles</h2>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <p class="section-desc">
+              The live roster used by the auto-pair rotation. Profiles are stored in Postgres; the bundled
+              JSON file is only the seed and offline fallback.
+            </p>
+            <div id="profile-list" class="profile-grid">
+              <div class="empty-state">Loading profiles…</div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="actions">
+              <button id="profile-refresh" type="button" class="secondary">Refresh Roster</button>
+              <button id="profile-reset" type="button" class="secondary">Clear Form</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 14px;">
+          <div class="card-body">
+            <p class="section-desc" id="profile-form-title">Add a new Stockfish persona.</p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="control-label" for="profile-id">Profile ID</label>
+                <input id="profile-id" placeholder="atlas-stockfish-18" />
+                <span class="control-help">Lowercase slug stored on match records; cannot change after creation</span>
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="profile-name">Name</label>
+                <input id="profile-name" placeholder="Atlas" />
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="profile-handle">Handle</label>
+                <input id="profile-handle" placeholder="atlas-engine" />
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="profile-color">Preferred Color</label>
+                <select id="profile-color">
+                  <option value="White">White</option>
+                  <option value="Black">Black</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="profile-skill">Skill Level (0–20)</label>
+                <input id="profile-skill" type="number" min="0" max="20" value="16" />
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="profile-threads">Threads</label>
+                <input id="profile-threads" type="number" min="1" max="8" value="1" />
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="profile-hash">Hash (MB)</label>
+                <input id="profile-hash" type="number" min="16" max="1024" value="64" />
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="profile-movetime">Move Time (ms)</label>
+                <input id="profile-movetime" type="number" min="100" max="10000" value="1200" />
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="profile-multipv">MultiPV</label>
+                <input id="profile-multipv" type="number" min="1" max="5" value="3" />
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="profile-opening">Opening Name</label>
+                <input id="profile-opening" placeholder="Ruy Lopez" />
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="profile-moves">Opening Moves (UCI, comma separated)</label>
+                <input id="profile-moves" placeholder="e2e4, g1f3, f1b5" />
+              </div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="actions">
+              <button id="profile-save" type="button">Create Profile</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Invites & Testers -->
+      <section class="section-group" data-section="all,invites">
+        <div class="section-header-row">
+          <div>
+            <div class="section-eyebrow">Private Beta • Access</div>
+            <h2 class="section-title">Invites & Testers</h2>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <p class="section-desc">
+              Generate single-use invite links. Each claim sends starter SOL and test-USDC from the beta
+              float, so keep the float funded before handing codes out.
+            </p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="control-label" for="invite-count">Number of Codes</label>
+                <input id="invite-count" type="number" min="1" max="100" value="1" />
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="invite-max-claims">Claims per Code</label>
+                <input id="invite-max-claims" type="number" min="1" max="10000" value="1" />
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="invite-sol">Starter SOL</label>
+                <input id="invite-sol" type="number" min="0" max="10" step="0.01" value="0.25" />
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="invite-usdc">Starter Test-USDC</label>
+                <input id="invite-usdc" type="number" min="0" max="10000" value="25" />
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="invite-label">Cohort Label</label>
+                <input id="invite-label" placeholder="Wave 1" />
+              </div>
+              <div class="form-group">
+                <label class="control-label" for="invite-expires">Expires (optional ISO)</label>
+                <input id="invite-expires" placeholder="2026-12-01T00:00:00Z" />
+              </div>
+            </div>
+            <div id="invite-created" class="admin-table" style="margin-top: 14px; display: none;"></div>
+          </div>
+          <div class="card-footer">
+            <div class="actions">
+              <button id="invite-refresh" type="button" class="secondary">Refresh</button>
+              <button id="invite-create" type="button">Generate Invite Codes</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 14px;">
+          <div class="card-body">
+            <p class="section-desc">All issued invite codes.</p>
+            <div id="invite-list" class="admin-table">
+              <div class="empty-state">Loading invites…</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 14px;">
+          <div class="card-body">
+            <p class="section-desc">Wallets that have claimed a code.</p>
+            <div id="tester-list" class="admin-table">
+              <div class="empty-state">Loading testers…</div>
+            </div>
           </div>
         </div>
       </section>
@@ -1435,6 +1853,512 @@
         message('System ready. Solana Devnet connection verified.');
       }
 
+      /* ── Arena control, roster, invites ───────────────────────── */
+
+      const BETA_WEB_ORIGIN = 'https://dllxy64bv69x8.cloudfront.net';
+      const arenaState = {
+        matches: [],
+        profiles: [],
+        invites: [],
+        testers: [],
+        editingProfileId: null,
+      };
+
+      async function adminRequest(method, url, body) {
+        const response = await fetch(url, {
+          method,
+          headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+          body: body === undefined ? undefined : JSON.stringify(body),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || `Request failed (${response.status})`);
+        return payload;
+      }
+
+      function pill(value) {
+        const span = document.createElement('span');
+        span.className = `status-pill ${String(value || '').toLowerCase()}`;
+        span.textContent = value || 'UNKNOWN';
+        return span;
+      }
+
+      function el(tag, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
+      }
+
+      function actionButton(label, action, id, variant) {
+        const button = el('button', `mini-btn${variant ? ` ${variant}` : ''}`, label);
+        button.type = 'button';
+        button.dataset.arenaAction = action;
+        button.dataset.arenaId = id;
+        return button;
+      }
+
+      function emptyRow(message) {
+        return el('div', 'empty-state', message);
+      }
+
+      function renderArena() {
+        const list = $('arena-list');
+        const matches = arenaState.matches;
+        const summary = $('arena-summary');
+        const counts = matches.reduce((acc, match) => {
+          acc[match.status] = (acc[match.status] || 0) + 1;
+          return acc;
+        }, {});
+        summary.replaceChildren(
+          el('span', 'control-help',
+            `${matches.length} matches · ${counts.LIVE || 0} live · ${counts.SCHEDULED || 0} scheduled · ${counts.COMPLETED || 0} completed`),
+        );
+
+        if (matches.length === 0) {
+          list.replaceChildren(emptyRow('No matches yet. Create one below or let the matchmaker run.'));
+          return;
+        }
+
+        const head = el('div', 'admin-row head');
+        ['Match', 'Players', 'State', 'Market', 'Actions'].forEach((label) => head.append(el('span', 'cell', label)));
+        const rows = matches.map((match) => {
+          const row = el('div', 'admin-row');
+          const matchCell = el('div', 'cell');
+          matchCell.append(el('strong', '', match.id), el('small', '', match.title || match.category || ''));
+          const players = el('div', 'cell', `${match.white} vs ${match.black}`);
+          players.append(el('small', '', `${match.currentPly || 0} plies`));
+          const state = el('div', 'cell');
+          state.append(pill(match.status));
+          if (match.result) state.append(el('small', '', `Result ${match.result}`));
+          const market = el('div', 'cell');
+          market.append(el('strong', '', match.marketAddress ? short(match.marketAddress) : 'No market'));
+          if (match.commands?.length) {
+            const command = match.commands[0];
+            market.append(el('small', '', `${command.type} ${command.status}`));
+          }
+          const actions = el('div', 'admin-actions');
+          if (match.status !== 'COMPLETED') {
+            actions.append(actionButton('Result', 'result', match.id, 'primary'));
+            if (match.marketAddress) actions.append(actionButton('Lock', 'lock', match.id));
+            actions.append(actionButton('Cancel', 'cancel', match.id));
+          } else if (match.marketAddress) {
+            const settle = match.commands?.find((command) => command.type === 'SETTLE');
+            if (!settle || settle.status !== 'CONFIRMED') {
+              actions.append(actionButton('Retry Settle', 'settle', match.id, 'primary'));
+            }
+          }
+          actions.append(actionButton('Delete', 'delete', match.id, 'danger'));
+          row.append(matchCell, players, state, market, actions);
+          return row;
+        });
+        list.replaceChildren(head, ...rows);
+      }
+
+      function renderProfileSelects() {
+        const active = arenaState.profiles.filter((profile) => profile.active);
+        for (const id of ['arena-new-white', 'arena-new-black']) {
+          const select = $(id);
+          const previous = select.value;
+          select.replaceChildren(...active.map((profile) => {
+            const option = el('option', '', `${profile.name} · skill ${profile.engine?.skillLevel ?? '?'}`);
+            option.value = profile.id;
+            return option;
+          }));
+          if (active.some((profile) => profile.id === previous)) select.value = previous;
+        }
+      }
+
+      function renderProfiles() {
+        const list = $('profile-list');
+        if (arenaState.profiles.length === 0) {
+          list.replaceChildren(emptyRow('No engine profiles. The seed roster is used until one is added.'));
+          return;
+        }
+        list.replaceChildren(...arenaState.profiles.map((profile) => {
+          const card = el('div', `profile-card${profile.active ? '' : ' retired'}`);
+          card.append(el('h3', '', profile.name), el('div', 'handle', profile.handle));
+          const dl = el('dl');
+          const pairs = [
+            ['ID', profile.id],
+            ['Color', profile.color],
+            ['Skill', profile.engine?.skillLevel ?? '—'],
+            ['Threads', profile.engine?.threads ?? '—'],
+            ['Hash', `${profile.engine?.hashMb ?? '—'} MB`],
+            ['Opening', profile.opening?.name || 'Stockfish'],
+            ['Status', profile.active ? 'ACTIVE' : 'RETIRED'],
+          ];
+          for (const [label, value] of pairs) dl.append(el('dt', '', label), el('dd', '', String(value)));
+          const actions = el('div', 'admin-actions');
+          const edit = el('button', 'mini-btn', 'Edit');
+          edit.type = 'button';
+          edit.dataset.profileAction = 'edit';
+          edit.dataset.profileId = profile.id;
+          const toggle = el('button', 'mini-btn', profile.active ? 'Retire' : 'Activate');
+          toggle.type = 'button';
+          toggle.dataset.profileAction = 'toggle';
+          toggle.dataset.profileId = profile.id;
+          const remove = el('button', 'mini-btn danger', 'Delete');
+          remove.type = 'button';
+          remove.dataset.profileAction = 'delete';
+          remove.dataset.profileId = profile.id;
+          actions.append(edit, toggle, remove);
+          card.append(dl, actions);
+          return card;
+        }));
+      }
+
+      function renderInvites() {
+        const list = $('invite-list');
+        if (arenaState.invites.length === 0) {
+          list.replaceChildren(emptyRow('No invite codes yet.'));
+        } else {
+          const head = el('div', 'admin-row head');
+          ['Code', 'Claims', 'Starter', 'Created', 'Actions'].forEach((label) => head.append(el('span', 'cell', label)));
+          const rows = arenaState.invites.map((invite) => {
+            const row = el('div', 'admin-row');
+            const code = el('div', 'cell');
+            code.append(el('strong', '', invite.code));
+            if (invite.label) code.append(el('small', '', invite.label));
+            const claims = el('div', 'cell');
+            claims.append(pill(invite.status), el('small', '', `${invite.claimCount} / ${invite.maxClaims} claimed`));
+            const starter = el('div', 'cell', `${invite.starterSol} SOL + ${invite.starterUsdc} USDC`);
+            const created = el('div', 'cell', new Date(invite.createdAt).toLocaleDateString());
+            const actions = el('div', 'admin-actions');
+            const copy = el('button', 'mini-btn', 'Copy Link');
+            copy.type = 'button';
+            copy.dataset.inviteAction = 'copy';
+            copy.dataset.inviteCode = invite.code;
+            actions.append(copy);
+            if (invite.status === 'ACTIVE') {
+              const revoke = el('button', 'mini-btn danger', 'Revoke');
+              revoke.type = 'button';
+              revoke.dataset.inviteAction = 'revoke';
+              revoke.dataset.inviteCode = invite.code;
+              actions.append(revoke);
+            }
+            row.append(code, claims, starter, created, actions);
+            return row;
+          });
+          list.replaceChildren(head, ...rows);
+        }
+
+        const testers = $('tester-list');
+        if (arenaState.testers.length === 0) {
+          testers.replaceChildren(emptyRow('No wallets have claimed an invite yet.'));
+          return;
+        }
+        const testerHead = el('div', 'admin-row head');
+        ['Wallet', 'Invite', 'Claimed', 'Status', 'Actions'].forEach((label) => testerHead.append(el('span', 'cell', label)));
+        const testerRows = arenaState.testers.map((tester) => {
+          const row = el('div', 'admin-row');
+          const wallet = el('div', 'cell');
+          wallet.append(el('strong', '', short(tester.wallet)));
+          wallet.append(el('small', '', tester.wallet));
+          const invite = el('div', 'cell', tester.inviteCode || '—');
+          if (tester.inviteLabel) invite.append(el('small', '', tester.inviteLabel));
+          const claimed = el('div', 'cell', tester.claimedAt ? new Date(tester.claimedAt).toLocaleString() : '—');
+          const state = el('div', 'cell');
+          state.append(pill(tester.blocked ? 'BLOCKED' : 'ACTIVE'));
+          const actions = el('div', 'admin-actions');
+          const toggle = el('button', `mini-btn${tester.blocked ? '' : ' danger'}`, tester.blocked ? 'Unblock' : 'Block');
+          toggle.type = 'button';
+          toggle.dataset.testerAction = 'toggle';
+          toggle.dataset.testerWallet = tester.wallet;
+          toggle.dataset.testerBlocked = tester.blocked ? 'false' : 'true';
+          actions.append(toggle);
+          row.append(wallet, invite, claimed, state, actions);
+          return row;
+        });
+        testers.replaceChildren(testerHead, ...testerRows);
+      }
+
+      async function loadArena() {
+        arenaState.matches = await adminRequest('GET', '/api/arena/matches');
+        renderArena();
+        // Suggest the next round id/title so an operator can create a match
+        // without having to look up the current counter.
+        const maxRound = arenaState.matches.reduce((max, match) => {
+          const found = /^gp-(\d+)$/i.exec(match.id);
+          return found ? Math.max(max, Number(found[1])) : max;
+        }, 0);
+        const nextId = `gp-${String(maxRound + 1).padStart(3, '0')}`;
+        if (!$('arena-new-id').value) $('arena-new-id').value = nextId;
+        if (!$('arena-new-title').value) $('arena-new-title').value = `Grand Prix Round ${maxRound + 1}`;
+      }
+
+      async function loadProfiles() {
+        arenaState.profiles = await adminRequest('GET', '/api/profiles');
+        renderProfiles();
+        renderProfileSelects();
+      }
+
+      async function loadInvites() {
+        const [invites, testers] = await Promise.all([
+          adminRequest('GET', '/api/invites'),
+          adminRequest('GET', '/api/testers'),
+        ]);
+        arenaState.invites = invites;
+        arenaState.testers = testers;
+        renderInvites();
+      }
+
+      function resetProfileForm() {
+        arenaState.editingProfileId = null;
+        $('profile-id').value = '';
+        $('profile-id').disabled = false;
+        $('profile-name').value = '';
+        $('profile-handle').value = '';
+        $('profile-color').value = 'White';
+        $('profile-skill').value = '16';
+        $('profile-threads').value = '1';
+        $('profile-hash').value = '64';
+        $('profile-movetime').value = '1200';
+        $('profile-multipv').value = '3';
+        $('profile-opening').value = '';
+        $('profile-moves').value = '';
+        $('profile-form-title').textContent = 'Add a new Stockfish persona.';
+        $('profile-save').textContent = 'Create Profile';
+      }
+
+      function fillProfileForm(profile) {
+        arenaState.editingProfileId = profile.id;
+        $('profile-id').value = profile.id;
+        $('profile-id').disabled = true;
+        $('profile-name').value = profile.name;
+        $('profile-handle').value = profile.handle;
+        $('profile-color').value = profile.color || 'White';
+        $('profile-skill').value = String(profile.engine?.skillLevel ?? 16);
+        $('profile-threads').value = String(profile.engine?.threads ?? 1);
+        $('profile-hash').value = String(profile.engine?.hashMb ?? 64);
+        $('profile-movetime').value = String(profile.engine?.moveTimeMs ?? 1200);
+        $('profile-multipv').value = String(profile.engine?.multiPv ?? 1);
+        $('profile-opening').value = profile.opening?.name || '';
+        $('profile-moves').value = (profile.opening?.moves || []).join(', ');
+        $('profile-form-title').textContent = `Editing ${profile.name}.`;
+        $('profile-save').textContent = 'Save Changes';
+        $('profile-name').focus();
+      }
+
+      function profilePayload() {
+        return {
+          id: $('profile-id').value.trim().toLowerCase(),
+          name: $('profile-name').value.trim(),
+          handle: $('profile-handle').value.trim().toLowerCase(),
+          color: $('profile-color').value,
+          engine: {
+            name: 'Stockfish',
+            skillLevel: Number($('profile-skill').value),
+            threads: Number($('profile-threads').value),
+            hashMb: Number($('profile-hash').value),
+            moveTimeMs: Number($('profile-movetime').value),
+            multiPv: Number($('profile-multipv').value),
+          },
+          opening: {
+            name: $('profile-opening').value.trim(),
+            moves: $('profile-moves').value.split(',').map((move) => move.trim()).filter(Boolean),
+          },
+          active: true,
+        };
+      }
+
+      function copyText(value) {
+        if (navigator.clipboard?.writeText) {
+          return navigator.clipboard.writeText(value).then(() => message('Invite link copied to clipboard.'));
+        }
+        window.prompt('Copy this invite link:', value);
+        return Promise.resolve();
+      }
+
+      document.addEventListener('click', async (event) => {
+        const arenaButton = event.target.closest('[data-arena-action]');
+        if (arenaButton) {
+          const { arenaAction: action, arenaId: id } = arenaButton.dataset;
+          try {
+            if (action === 'result') {
+              const result = window.prompt(`Final result for ${id}?\n\n1-0 = White wins\n0-1 = Black wins\n1/2-1/2 = Draw`, '1-0');
+              if (result === null) return;
+              const normalized = result.trim();
+              if (!['1-0', '0-1', '1/2-1/2'].includes(normalized)) {
+                throw new Error('Result must be 1-0, 0-1, or 1/2-1/2');
+              }
+              if (!confirm(`Force ${id} to ${normalized} and queue settlement?`)) return;
+              message(`Forcing result for ${id}…`);
+              await adminRequest('POST', `/api/arena/matches/${encodeURIComponent(id)}/result`, { result: normalized });
+              message(`${id} completed as ${normalized}. Settlement queued.`);
+            } else if (action === 'settle') {
+              const match = arenaState.matches.find((item) => item.id === id);
+              if (!match?.result) throw new Error('This match has no stored result to settle');
+              if (!confirm(`Retry settlement for ${id} as ${match.result}?`)) return;
+              await adminRequest('POST', `/api/arena/matches/${encodeURIComponent(id)}/result`, { result: match.result });
+              message(`Settlement retry queued for ${id}.`);
+            } else if (action === 'cancel') {
+              if (!confirm(`Cancel ${id}? Any on-chain market is cancelled and positions become refundable.`)) return;
+              await adminRequest('POST', `/api/arena/matches/${encodeURIComponent(id)}/cancel`, { reason: 'Cancelled from admin console' });
+              message(`${id} cancelled. Refunds enabled if it had a market.`);
+            } else if (action === 'lock') {
+              if (!confirm(`Lock the market for ${id} now? Betting closes immediately.`)) return;
+              await adminRequest('POST', `/api/arena/matches/${encodeURIComponent(id)}/lock`, {});
+              message(`Lock queued for ${id}.`);
+            } else if (action === 'delete') {
+              if (!confirm(`Permanently delete ${id}, its moves, events, and queued commands? This cannot be undone.`)) return;
+              await adminRequest('DELETE', `/api/arena/matches/${encodeURIComponent(id)}`);
+              message(`${id} deleted.`);
+            }
+            await loadArena();
+          } catch (error) {
+            message(`Arena action failed: ${error.message}`, true);
+          }
+          return;
+        }
+
+        const profileButton = event.target.closest('[data-profile-action]');
+        if (profileButton) {
+          const { profileAction: action, profileId: id } = profileButton.dataset;
+          const profile = arenaState.profiles.find((item) => item.id === id);
+          if (!profile) return;
+          try {
+            if (action === 'edit') {
+              fillProfileForm(profile);
+              $('profile-save').scrollIntoView({ behavior: 'smooth', block: 'center' });
+              return;
+            }
+            if (action === 'toggle') {
+              const next = { ...profile, active: !profile.active };
+              await adminRequest('PUT', `/api/profiles/${encodeURIComponent(id)}`, next);
+              message(`${profile.name} ${next.active ? 'activated' : 'retired'}.`);
+            } else if (action === 'delete') {
+              if (!confirm(`Delete engine profile ${profile.name}? Matches that already reference it keep their stored profile snapshot.`)) return;
+              await adminRequest('DELETE', `/api/profiles/${encodeURIComponent(id)}`);
+              message(`${profile.name} deleted.`);
+            }
+            await loadProfiles();
+            await loadArena();
+          } catch (error) {
+            message(`Profile action failed: ${error.message}`, true);
+          }
+          return;
+        }
+
+        const inviteButton = event.target.closest('[data-invite-action]');
+        if (inviteButton) {
+          const { inviteAction: action, inviteCode: code } = inviteButton.dataset;
+          try {
+            if (action === 'copy') {
+              await copyText(`${BETA_WEB_ORIGIN}/profile?invite=${encodeURIComponent(code)}`);
+            } else if (action === 'revoke') {
+              if (!confirm(`Revoke invite ${code}? Unclaimed links stop working immediately.`)) return;
+              await adminRequest('POST', `/api/invites/${encodeURIComponent(code)}/revoke`, {});
+              message(`Invite ${code} revoked.`);
+              await loadInvites();
+            }
+          } catch (error) {
+            message(`Invite action failed: ${error.message}`, true);
+          }
+          return;
+        }
+
+        const testerButton = event.target.closest('[data-tester-action]');
+        if (testerButton) {
+          const wallet = testerButton.dataset.testerWallet;
+          const blocked = testerButton.dataset.testerBlocked === 'true';
+          try {
+            if (!confirm(`${blocked ? 'Block' : 'Unblock'} ${wallet}? ${blocked ? 'They will be unable to top up or trade.' : 'They regain beta access.'}`)) return;
+            await adminRequest('POST', `/api/testers/${encodeURIComponent(wallet)}/block`, { blocked });
+            message(`${short(wallet)} ${blocked ? 'blocked' : 'unblocked'}.`);
+            await loadInvites();
+          } catch (error) {
+            message(`Tester action failed: ${error.message}`, true);
+          }
+        }
+      });
+
+      $('arena-refresh').onclick = () => loadArena().then(() => message('Arena refreshed.')).catch((error) => message(error.message, true));
+      $('profile-refresh').onclick = () => loadProfiles().then(() => message('Roster refreshed.')).catch((error) => message(error.message, true));
+      $('profile-reset').onclick = () => resetProfileForm();
+      $('invite-refresh').onclick = () => loadInvites().then(() => message('Invites refreshed.')).catch((error) => message(error.message, true));
+
+      $('arena-create').onclick = async () => {
+        try {
+          const body = {
+            matchId: $('arena-new-id').value.trim(),
+            title: $('arena-new-title').value.trim(),
+            category: $('arena-new-category').value.trim() || 'BENCHMARK',
+            countdownMinutes: Number($('arena-new-countdown').value),
+            whiteAgentId: $('arena-new-white').value || undefined,
+            blackAgentId: $('arena-new-black').value || undefined,
+          };
+          if (!body.matchId) throw new Error('Enter a match ID first.');
+          if (!confirm(`Create ${body.matchId} with a ${body.countdownMinutes} minute betting window?`)) return;
+          const result = await adminRequest('POST', '/api/arena/matches', body);
+          message(`Match ${result.id} staged: ${result.whiteAgent} vs ${result.blackAgent}.`);
+          $('arena-new-id').value = '';
+          $('arena-new-title').value = '';
+          await loadArena();
+        } catch (error) {
+          message(`Create match failed: ${error.message}`, true);
+        }
+      };
+
+      $('profile-save').onclick = async () => {
+        try {
+          const body = profilePayload();
+          if (!body.id) throw new Error('Enter a profile ID.');
+          if (!body.name) throw new Error('Enter a profile name.');
+          if (!body.handle) throw new Error('Enter a profile handle.');
+          if (arenaState.editingProfileId) {
+            await adminRequest('PUT', `/api/profiles/${encodeURIComponent(arenaState.editingProfileId)}`, body);
+            message(`${body.name} updated.`);
+          } else {
+            await adminRequest('POST', '/api/profiles', body);
+            message(`${body.name} added to the roster.`);
+          }
+          resetProfileForm();
+          await loadProfiles();
+        } catch (error) {
+          message(`Save profile failed: ${error.message}`, true);
+        }
+      };
+
+      $('invite-create').onclick = async () => {
+        try {
+          const body = {
+            count: Number($('invite-count').value),
+            maxClaims: Number($('invite-max-claims').value),
+            sol: Number($('invite-sol').value),
+            usdc: Number($('invite-usdc').value),
+            label: $('invite-label').value.trim() || null,
+            expires: $('invite-expires').value.trim() || null,
+          };
+          if (!confirm(`Generate ${body.count} invite code${body.count === 1 ? '' : 's'}? Each claim sends ${body.sol} SOL + ${body.usdc} test-USDC from the float.`)) return;
+          const created = await adminRequest('POST', '/api/invites', body);
+          const box = $('invite-created');
+          box.style.display = 'flex';
+          const head = el('div', 'admin-row head');
+          ['New Code', 'Link', 'Starter', 'Expires', ''].forEach((label) => head.append(el('span', 'cell', label)));
+          box.replaceChildren(head, ...created.map((invite) => {
+            const row = el('div', 'admin-row');
+            const code = el('div', 'cell');
+            code.append(el('strong', '', invite.code));
+            const link = el('div', 'cell');
+            link.append(el('small', '', invite.url));
+            const starter = el('div', 'cell', `${invite.starterSol} SOL + ${invite.starterUsdc} USDC`);
+            const expires = el('div', 'cell', invite.expiresAt ? new Date(invite.expiresAt).toLocaleString() : 'Never');
+            const actions = el('div', 'admin-actions');
+            const copy = el('button', 'mini-btn primary', 'Copy Link');
+            copy.type = 'button';
+            copy.dataset.inviteAction = 'copy';
+            copy.dataset.inviteCode = invite.code;
+            actions.append(copy);
+            row.append(code, link, starter, expires, actions);
+            return row;
+          }));
+          message(`${created.length} invite code${created.length === 1 ? '' : 's'} created.`);
+          await loadInvites();
+        } catch (error) {
+          message(`Create invite failed: ${error.message}`, true);
+        }
+      };
+
       // Quick Lock Preset Helpers
       window.setLockPreset = (minutes) => {
         const date = new Date(Date.now() + minutes * 60 * 1000);
@@ -1688,6 +2612,9 @@
       $('market-lock').value = `${defaultLock.getFullYear()}-${pad(defaultLock.getMonth() + 1)}-${pad(defaultLock.getDate())}T${pad(defaultLock.getHours())}:${pad(defaultLock.getMinutes())}`;
 
       load().catch((error) => message(error.message, true));
+      loadArena().catch((error) => { $('arena-list').replaceChildren(el('div', 'empty-state', `Arena unavailable: ${error.message}`)); });
+      loadProfiles().catch((error) => { $('profile-list').replaceChildren(el('div', 'empty-state', `Roster unavailable: ${error.message}`)); });
+      loadInvites().catch((error) => { $('invite-list').replaceChildren(el('div', 'empty-state', `Invites unavailable: ${error.message}`)); });
     </script>
   </body>
 </html>
